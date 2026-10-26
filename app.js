@@ -234,7 +234,7 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
 }
 
 let poster=null,client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],posterObjectUrl=null;
-const val=s=>$(s).value.trim(), themeName=()=>$("#themeFamily")?.value==="letterboxd"?"lb_green":$("#themeFamily")?.value==="serializd"?"sz_violet":$('input[name="theme"]:checked')?.value||"noir";
+const val=s=>$(s).value.trim(), themeName=()=>$('input[name="theme"]:checked')?.value||($("#themeFamily")?.value==="letterboxd"?"lb_green":$("#themeFamily")?.value==="serializd"?"sz_violet":"noir");
 function activeTheme(){const family=themeFamilies[$("#themeFamily")?.value||"general"]||themeFamilies.general;return family.themes[themeName()]||Object.values(family.themes)[0]}
 function setThemeOptions(){const family=themeFamilies[$("#themeFamily").value]||themeFamilies.general,grid=$("#themeSwatches");grid.replaceChildren();Object.entries(family.themes).forEach(([key,t],i)=>{const label=document.createElement("label"),radio=document.createElement("input"),sw=document.createElement("span"),name=document.createElement("b");radio.type="radio";radio.name="theme";radio.value=key;radio.checked=i===0;sw.className="swatch";sw.style.background="linear-gradient(135deg,"+t.bg+" 40%,"+t.accent+" 41%, "+t.accent+" 48%,"+t.bg+" 49%)";name.textContent=key.replace(/^lb_|^sz_/,"").replace(/_/g," ").replace(/^./,x=>x.toUpperCase());label.append(radio,sw,name);grid.append(label)});render()}
 const safeStore={get(k){try{return localStorage.getItem(k)||""}catch{return""}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
