@@ -33,13 +33,205 @@ const samples=[
 {name:"Blade Runner 2049",url:"https://images.everyeye.it/img-screenshot/blade-runner-2049-v1-524761.jpg"},
 {name:"Chungking Express",url:"https://m.media-amazon.com/images/M/MV5BOGE2OWU5NzQtNTI2Ni00YmJmLWIzM2QtNzA1MTY3ZTRiNDdkXkEyXkFqcGc%40._V1_.jpg"}
 ];
-let tmdbResults=[];
+let tmdbResults=[], selectedTMDB=null, tmdbPosterVariants=[], tmdbLoadSequence=0, activePosterPath="";
 function setTMDBStatus(msg,type=""){status("#tmdbStatus",msg,type)}
 function tmdbKey(){return safeStore.get("framix.tmdbKey")||""}
-async function tmdb(path,params={}){const key=tmdbKey();if(!key)throw Error("Add a TMDB v3 API key in the settings above. You can still upload images manually.");const u=new URL("https://api.themoviedb.org/3"+path);u.searchParams.set("api_key",key);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(u,{signal:controller.signal});if(!r.ok){if(r.status===401)throw Error("TMDB rejected this API key. Check it and save again.");if(r.status===429)throw Error("TMDB rate limit reached. Wait a moment and retry.");throw Error("TMDB request failed ("+r.status+").")}return await r.json()}finally{clearTimeout(timer)}}
-async function searchTMDB(){const q=val("#tmdbQuery");if(!q){setTMDBStatus("Enter a movie or TV title to search.");return}const button=$("#tmdbSearch");button.disabled=true;$("#tmdbResults").replaceChildren();setTMDBStatus("Searching TMDB…");try{const [movies,tv]=await Promise.all([tmdb("/search/movie",{query:q,include_adult:"false"}),tmdb("/search/tv",{query:q})]);tmdbResults=[...(movies.results||[]).map(x=>({...x,media_type:"movie",display_title:x.title||x.original_title,display_date:x.release_date})),...(tv.results||[]).map(x=>({...x,media_type:"tv",display_title:x.name||x.original_name,display_date:x.first_air_date}))].sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,12);renderTMDBResults();setTMDBStatus(tmdbResults.length?"Found "+tmdbResults.length+" results. Choose artwork to use it in your poster.":"No results found. Try another title.",tmdbResults.length?"success":"")}catch(e){setTMDBStatus(e.message||"Could not reach TMDB. Try again later.","error")}finally{button.disabled=false}}
-function renderTMDBResults(){const grid=$("#tmdbResults");grid.replaceChildren();tmdbResults.forEach((r,i)=>{const card=document.createElement("article");card.className="tmdb-result";const img=document.createElement("img");img.alt="";img.loading="lazy";img.src=r.poster_path?"https://image.tmdb.org/t/p/w342"+r.poster_path:"";img.onerror=()=>{img.hidden=true};const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small"),button=document.createElement("button");title.textContent=r.display_title||"Untitled";meta.textContent=(r.media_type==="tv"?"TV SERIES":"MOVIE")+" · "+(r.display_date||"Release date unknown").slice(0,4);button.type="button";button.textContent="Use poster";button.addEventListener("click",()=>selectTMDB(r));info.append(title,meta,button);card.append(img,info);grid.append(card)})}
-async function selectTMDB(r){const button=$("#tmdbResults").querySelectorAll("button");button.forEach(b=>b.disabled=true);setTMDBStatus("Loading selected artwork…");try{const detail=await tmdb("/"+r.media_type+"/"+r.id,r.media_type==="movie"?{append_to_response:"credits"}:{});const imagePath=detail.poster_path||r.poster_path;if(!imagePath)throw Error("This title has no poster image in TMDB. Upload one manually.");const blob=await fetchImage("https://image.tmdb.org/t/p/w780"+imagePath),img=new Image(),url=URL.createObjectURL(blob);await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error("Could not load this poster"));img.src=url});if(posterObjectUrl)URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=url;setPoster(img,r.display_title||"TMDB poster");$("#filmTitle").value=(detail.title||detail.name||r.display_title||"").slice(0,100);const year=(detail.release_date||detail.first_air_date||r.display_date||"").slice(0,4),director=(detail.credits?.crew||[]).find(x=>x.job==="Director")?.name;$("#filmYear").value=[year,director].filter(Boolean).join(" · ").slice(0,60);setTMDBStatus("Poster loaded: "+(r.display_title||"selected title")+". Artwork provided by TMDB.","success");render()}catch(e){setTMDBStatus(e.message||"Could not load poster artwork.","error")}finally{button.forEach(b=>b.disabled=false)}}
+async function tmdb(path,params={}){
+  const key=tmdbKey();
+  if(!key)throw Error("Save your TMDB v3 API key first. You can still upload a poster manually.");
+  const u=new URL("https://api.themoviedb.org/3"+path);
+  u.searchParams.set("api_key",key);
+  Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")u.searchParams.set(k,v)});
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(u,{signal:controller.signal,credentials:"omit"});
+    if(!response.ok){
+      if(response.status===401)throw Error("TMDB rejected this API key. Check that you copied the v3 API key (not your account password) and save it again.");
+      if(response.status===403)throw Error("TMDB denied this key. Check your API application status and key.");
+      if(response.status===429)throw Error("TMDB rate limit reached. Wait a moment and retry.");
+      throw Error("TMDB request failed ("+response.status+").");
+    }
+    return await response.json();
+  }finally{clearTimeout(timer)}
+}
+function normalizeTitle(text){
+  return String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+}
+function guessYear(text){
+  const match=String(text||"").match(/\b(?:18|19|20)\d{2}\b/);
+  return match?match[0]:"";
+}
+function tmdbResult(item,mediaType){
+  return {...item,media_type:mediaType,display_title:mediaType==="tv"?(item.name||item.original_name):(item.title||item.original_title),display_date:mediaType==="tv"?item.first_air_date:item.release_date};
+}
+function scoreTMDBResult(item,title,year,mediaHint){
+  const expected=normalizeTitle(title);
+  const names=[item.display_title,item.original_title,item.original_name,item.title,item.name].filter(Boolean).map(normalizeTitle);
+  let titleScore=0;
+  for(const candidate of names){
+    if(candidate===expected)titleScore=Math.max(titleScore,120);
+    else if(candidate.startsWith(expected)||expected.startsWith(candidate))titleScore=Math.max(titleScore,75);
+    else{
+      const a=new Set(expected.split(" ").filter(Boolean)),b=new Set(candidate.split(" ").filter(Boolean));
+      const overlap=[...a].filter(token=>b.has(token)).length/Math.max(1,a.size);
+      titleScore=Math.max(titleScore,overlap*72);
+    }
+  }
+  const itemYear=String(item.display_date||"").slice(0,4);
+  const yearScore=year?(itemYear===year?45:(itemYear?-18:0)):0;
+  const typeScore=mediaHint&&item.media_type===mediaHint?16:0;
+  const popularityScore=Math.min(8,Math.log2(1+Math.max(0,Number(item.popularity)||0)));
+  return titleScore+yearScore+typeScore+popularityScore;
+}
+async function searchTMDB(){
+  const query=val("#tmdbQuery");
+  if(!query){setTMDBStatus("Enter a movie or TV title to search.");return}
+  const button=$("#tmdbSearch");button.disabled=true;$("#tmdbResults").replaceChildren();
+  setTMDBStatus("Searching TMDB…");
+  try{
+    const [movies,tv]=await Promise.all([
+      tmdb("/search/movie",{query,include_adult:"false"}),
+      tmdb("/search/tv",{query})
+    ]);
+    tmdbResults=[...(movies.results||[]).map(item=>tmdbResult(item,"movie")),...(tv.results||[]).map(item=>tmdbResult(item,"tv"))]
+      .sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,20);
+    renderTMDBResults();
+    setTMDBStatus(tmdbResults.length?"Found "+tmdbResults.length+" titles. Choose one, then browse all its TMDB posters.":"No results found. Try the original title or another spelling.",tmdbResults.length?"success":"");
+  }catch(error){setTMDBStatus(error.message||"Could not reach TMDB. Try again later.","error")}
+  finally{button.disabled=false}
+}
+function renderTMDBResults(){
+  const grid=$("#tmdbResults");grid.replaceChildren();
+  tmdbResults.forEach(item=>{
+    const card=document.createElement("article");card.className="tmdb-result";
+    const img=document.createElement("img");img.alt="";img.loading="lazy";img.src=item.poster_path?"https://image.tmdb.org/t/p/w342"+item.poster_path:"";img.onerror=()=>{img.hidden=true};
+    const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small"),button=document.createElement("button");
+    title.textContent=item.display_title||"Untitled";
+    meta.textContent=(item.media_type==="tv"?"TV SERIES":"MOVIE")+" · "+(item.display_date||"Release date unknown").slice(0,4);
+    button.type="button";button.textContent="Choose title";button.addEventListener("click",()=>selectTMDB(item));
+    info.append(title,meta,button);card.append(img,info);grid.append(card);
+  });
+}
+function renderTMDBPosterOptions(){
+  const wrap=$("#tmdbPosterOptionsWrap"),grid=$("#tmdbPosters");
+  grid.replaceChildren();
+  if(!selectedTMDB||!tmdbPosterVariants.length){wrap.hidden=true;$("#tmdbPosterCount").textContent="";return}
+  wrap.hidden=false;
+  $("#tmdbPosterCount").textContent=tmdbPosterVariants.length+" option"+(tmdbPosterVariants.length===1?"":"s");
+  tmdbPosterVariants.forEach((posterItem,index)=>{
+    const button=document.createElement("button");button.type="button";button.className="tmdb-poster-option"+(posterItem.file_path===activePosterPath?" is-selected":"");
+    button.dataset.posterPath=posterItem.file_path;
+    button.title="Use poster variant "+(index+1)+(posterItem.iso_639_1?" · "+posterItem.iso_639_1:" · no language label");
+    button.setAttribute("aria-label",button.title);
+    const img=document.createElement("img");img.loading="lazy";img.alt="";img.src="https://image.tmdb.org/t/p/w185"+posterItem.file_path;img.onerror=()=>{img.alt="Poster preview unavailable"};
+    const caption=document.createElement("span");caption.textContent=(posterItem.iso_639_1||"no text").toUpperCase()+" · "+(posterItem.vote_average?Number(posterItem.vote_average).toFixed(1)+"★":"TMDB");
+    button.append(img,caption);
+    button.addEventListener("click",()=>chooseTMDBPoster(posterItem.file_path));
+    grid.append(button);
+  });
+}
+async function chooseTMDBPoster(filePath){
+  const requestId=++tmdbLoadSequence;
+  if(!selectedTMDB||!filePath)return;
+  setTMDBStatus("Switching poster artwork…");
+  try{
+    const loaded=await applyTMDBPoster(filePath,selectedTMDB.display_title,requestId);
+    if(loaded){activePosterPath=filePath;renderTMDBPosterOptions();setTMDBStatus("Poster changed. This artwork is from TMDB.","success")}
+  }catch(error){if(requestId===tmdbLoadSequence)setTMDBStatus("Could not load that poster variant. Try another one or upload your own.","error");console.warn("TMDB poster variant failed",error)}
+}
+async function applyTMDBPoster(filePath,title,requestId){
+  const blob=await fetchImage("https://image.tmdb.org/t/p/w780"+filePath);
+  if(requestId!==tmdbLoadSequence)return false;
+  const objectUrl=URL.createObjectURL(blob),img=new Image();
+  try{
+    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error("Image could not be decoded"));img.src=objectUrl});
+    if(requestId!==tmdbLoadSequence){URL.revokeObjectURL(objectUrl);return false}
+    if(posterObjectUrl)URL.revokeObjectURL(posterObjectUrl);
+    posterObjectUrl=objectUrl;poster=img;activePosterPath=filePath;
+    setPoster(img,(title||"TMDB title")+" · TMDB poster");
+    $$(".poster-preset").forEach(button=>button.classList.remove("is-selected"));
+    renderTMDBPosterOptions();
+    return true;
+  }catch(error){URL.revokeObjectURL(objectUrl);throw error}
+}
+async function selectTMDB(item,options={}){
+  const requestId=options.requestId??(++tmdbLoadSequence);
+  const buttons=$("#tmdbResults").querySelectorAll("button");buttons.forEach(button=>button.disabled=true);
+  setTMDBStatus(options.automatic?"Found the title. Loading its posters…":"Loading title and alternate posters…");
+  try{
+    const detailPath="/"+item.media_type+"/"+item.id;
+    const detailParams=item.media_type==="movie"?{append_to_response:"credits"}:{};
+    const [detail,imageData]=await Promise.all([
+      tmdb(detailPath,detailParams),
+      tmdb(detailPath+"/images").catch(error=>{console.warn("TMDB image variants unavailable",error);return {posters:[]}})
+    ]);
+    if(requestId!==tmdbLoadSequence)return;
+    const mediaTitle=detail.title||detail.name||item.display_title||"TMDB title";
+    const mediaYear=String(detail.release_date||detail.first_air_date||item.display_date||"").slice(0,4);
+    const creator=item.media_type==="tv"?(detail.created_by||[]).map(person=>person.name).filter(Boolean).slice(0,2).join(", "):(detail.credits?.crew||[]).find(person=>person.job==="Director")?.name||"";
+    selectedTMDB={id:item.id,media_type:item.media_type,display_title:mediaTitle,display_date:mediaYear};
+    const variants=imageData.posters||[];
+    const allPaths=new Map();
+    [...variants].sort((a,b)=>(Number(b.vote_average)||0)-(Number(a.vote_average)||0)||(Number(b.vote_count)||0)-(Number(a.vote_count)||0))
+      .forEach(variant=>{if(variant.file_path&&!allPaths.has(variant.file_path))allPaths.set(variant.file_path,variant)});
+    const preferredPath=detail.poster_path||item.poster_path||"";
+    if(preferredPath&&!allPaths.has(preferredPath))allPaths.set(preferredPath,{file_path:preferredPath,iso_639_1:null,vote_average:0,vote_count:0});
+    tmdbPosterVariants=[...allPaths.values()];
+    if(preferredPath)tmdbPosterVariants.sort((a,b)=>Number(b.file_path===preferredPath)-Number(a.file_path===preferredPath));
+    renderTMDBPosterOptions();
+    if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images. Upload a poster manually.");
+    $("#filmTitle").value=mediaTitle.slice(0,100);
+    $("#filmYear").value=[mediaYear,creator].filter(Boolean).join(" · ").slice(0,60);
+    const primaryPath=preferredPath||tmdbPosterVariants[0].file_path;
+    const loaded=await applyTMDBPoster(primaryPath,mediaTitle,requestId);
+    if(!loaded)return;
+    setTMDBStatus((options.automatic?"Review imported · poster loaded automatically. ":"Poster loaded. ")+tmdbPosterVariants.length+" TMDB poster option"+(tmdbPosterVariants.length===1?"":"s")+" available below. Choose any thumbnail to switch artwork.","success");
+  }catch(error){
+    if(requestId===tmdbLoadSequence)setTMDBStatus(error.message||"Could not load TMDB poster artwork.","error");
+    console.warn("TMDB title selection failed",error);
+  }finally{if(requestId===tmdbLoadSequence)buttons.forEach(button=>button.disabled=false)}
+}
+async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
+  const requestId=++tmdbLoadSequence;
+  const query=String(title||"").trim();
+  $("#tmdbQuery").value=query;
+  $("#tmdbResults").replaceChildren();
+  $("#tmdbPosterOptionsWrap").hidden=true;
+  $("#tmdbPosters").replaceChildren();
+  if(!tmdbKey()){
+    setTMDBStatus("Review imported. Save your TMDB v3 key above to load the poster automatically; you can also upload an image manually.","error");
+    return;
+  }
+  if(!query){setTMDBStatus("Review imported. No title was available for TMDB search.","error");return}
+  const yearHint=guessYear(year);
+  setTMDBStatus("Review imported · searching TMDB for "+query+(yearHint?" ("+yearHint+")":"")+"…");
+  try{
+    const movieParams={query,include_adult:"false"};
+    const tvParams={query};
+    if(yearHint){movieParams.primary_release_year=yearHint;tvParams.first_air_date_year=yearHint}
+    let [movies,tv]=await Promise.all([
+      tmdb("/search/movie",movieParams).catch(()=>({results:[]})),
+      tmdb("/search/tv",tvParams).catch(()=>({results:[]}))
+    ]);
+    let candidates=[...(movies.results||[]).map(result=>tmdbResult(result,"movie")),...(tv.results||[]).map(result=>tmdbResult(result,"tv"))];
+    if(!candidates.length&&yearHint){
+      [movies,tv]=await Promise.all([tmdb("/search/movie",{query,include_adult:"false"}).catch(()=>({results:[]})),tmdb("/search/tv",{query}).catch(()=>({results:[]}))]);
+      candidates=[...(movies.results||[]).map(result=>tmdbResult(result,"movie")),...(tv.results||[]).map(result=>tmdbResult(result,"tv"))];
+    }
+    if(requestId!==tmdbLoadSequence)return;
+    candidates=candidates.map(candidate=>({...candidate,_framixScore:scoreTMDBResult(candidate,query,yearHint,mediaHint)}))
+      .sort((a,b)=>b._framixScore-a._framixScore);
+    tmdbResults=candidates.slice(0,10);renderTMDBResults();
+    const best=candidates[0];
+    if(!best||best._framixScore<55){
+      setTMDBStatus("Review imported, but TMDB couldn't find a confident title match. Choose the correct title above or upload a poster.","error");
+      return;
+    }
+    await selectTMDB(best,{automatic:true,requestId});
+  }catch(error){
+    if(requestId===tmdbLoadSequence)setTMDBStatus("Review imported, but TMDB poster lookup failed: "+(error.message||"unknown error"),"error");
+  }
+}
 
 let poster=null,client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],posterObjectUrl=null;
 const val=s=>$(s).value.trim(), themeName=()=>$("#themeFamily")?.value==="letterboxd"?"lb_green":$("#themeFamily")?.value==="serializd"?"sz_violet":$('input[name="theme"]:checked')?.value||"noir";
@@ -53,11 +245,12 @@ function render(){
  const t=activeTheme(),layout=$("#posterLayout").value,title=val("#filmTitle")||"Untitled",meta=val("#filmYear"),review=$("#showReview").checked?val("#reviewText"):"",showRating=$("#showRating").checked,rating=Number($("#rating").value)||0,m=76;
  ctx.clearRect(0,0,W,H);ctx.textBaseline="top";ctx.textAlign="left";ctx.fillStyle=t.bg;ctx.fillRect(0,0,W,H);
  const imageHeight=layout==="poster"?H:layout==="review"?Math.round(H*.47):Math.round(H*.34);
- if(poster){cover(poster,0,0,W,imageHeight);const shade=ctx.createLinearGradient(0,0,0,imageHeight);shade.addColorStop(0,"rgba(3,7,13,.3)");shade.addColorStop(.7,t.overlay);shade.addColorStop(1,t.bg);ctx.fillStyle=shade;ctx.fillRect(0,0,W,imageHeight)}
+ if(poster){cover(poster,0,0,W,imageHeight);const shade=ctx.createLinearGradient(0,0,0,imageHeight);shade.addColorStop(0,"rgba(3,7,13,.28)");shade.addColorStop(.48,t.overlay);shade.addColorStop(1,t.bg);ctx.fillStyle=shade;ctx.fillRect(0,0,W,imageHeight)}
  else{const g=ctx.createRadialGradient(W*.72,H*.23,10,W*.72,H*.23,W*.8);g.addColorStop(0,t.accent+"66");g.addColorStop(1,t.bg);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle=t.accent+"33";ctx.lineWidth=2;[300,355].forEach(r=>{ctx.beginPath();ctx.arc(W*.72,H*.23,r,0,Math.PI*2);ctx.stroke()})}
  if(layout!=="poster"){ctx.fillStyle=t.bg;ctx.fillRect(0,imageHeight,W,H-imageHeight)}
- const footerY=H-91;
- ctx.fillStyle=layout==="archive"?t.ink:"#f3f0e8";ctx.font="500 18px 'DM Mono',monospace";ctx.fillText("FRAMIX / FILM JOURNAL",m,48);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText(layout==="poster"?"CINEMATIC POSTER":layout==="review"?"PERSONAL REVIEW":"EDITORIAL FRAME",W-m,48);
+ const footerY=H-310;
+ ctx.fillStyle=t.ink;ctx.font="500 18px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("FRAMIX / FILM JOURNAL",m,112);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText(layout==="poster"?"CINEMATIC POSTER":layout==="review"?"PERSONAL REVIEW":"EDITORIAL FRAME",W-m,112);
+ ctx.strokeStyle=t.accent+"66";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,151);ctx.lineTo(W-m,151);ctx.stroke();
  let y=layout==="poster"?(poster?H*.45:H*.37):layout==="review"?imageHeight+38:imageHeight+35;
  ctx.textAlign="left";ctx.fillStyle=t.accent;ctx.font="500 18px 'DM Mono',monospace";ctx.fillText(layout==="poster"?"A FILM TO REMEMBER":layout==="review"?"RECENTLY WATCHED":"SELECTED FRAME",m,y);y+=42;
  ctx.fillStyle=t.ink;const titleSize=layout==="review"?62:layout==="editorial"?70:76;ctx.font="600 "+titleSize+"px 'Playfair Display',Georgia,serif";y=textBlock(title,m,y,W-2*m,Math.round(titleSize*1.08),2)+8;
@@ -67,6 +260,7 @@ function render(){
  ctx.strokeStyle=t.accent+"88";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,footerY);ctx.lineTo(W-m,footerY);ctx.stroke();ctx.fillStyle=t.muted;ctx.font="500 14px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("YOUR TASTE, IN A FRAME.",m,footerY+23);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText("FRAMIX © 2026",W-m,footerY+23);
  $("#previewStatus").textContent=poster?"ARTWORK LOADED ✓":"READY TO FRAME ↗";
 }
+
 function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function normalizeSZ(input){let s=String(input||"").trim();if(/^https?:\/\//i.test(s)){try{const u=new URL(s);if(!/(^|\.)serializd\.com$/i.test(u.hostname))return"";const parts=u.pathname.split("/").filter(Boolean);const i=parts.findIndex(x=>["user","users"].includes(x.toLowerCase()));s=i>=0?parts[i+1]:(parts[parts.length-1]||"")}catch{return""}}s=s.replace(/^@/,"").replace(/\/$/,"");return /^[A-Za-z0-9_-]{2,40}$/.test(s)?s:""}
