@@ -22,7 +22,8 @@ function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.
 // the no-key CORS relay is only used for anonymous public GET requests.
 function normalizeLetterboxdUsername(input){
  let raw=String(input||"").trim().replace(/^@/,"");
- raw=raw.replace(/^https?:\\/\\/(www\\.)?letterboxd\\.com\\//i,"").replace(/\\/?(?:rss)?\\/?$/i,"");
+ raw=raw.replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"");
+ raw=raw.replace(/\/(?:rss\/?)?$/i,"");
  raw=raw.split(/[?#/]/)[0].replace(/^@/,"");
  return /^[A-Za-z0-9_]{2,30}$/.test(raw)?raw:"";
 }
@@ -35,9 +36,9 @@ function plainReviewText(raw){
  const doc=new DOMParser().parseFromString("<!doctype html><html><body>"+String(raw||"")+"</body></html>","text/html");
  doc.querySelectorAll("script,style").forEach(n=>n.remove());
  doc.querySelectorAll("img").forEach(n=>{const p=n.closest("p");if(p)p.remove();else n.remove()});
- doc.querySelectorAll("br").forEach(n=>n.replaceWith(document.createTextNode("\\n")));
- doc.querySelectorAll("p,div").forEach(n=>{if(n.textContent.trim())n.append(document.createTextNode("\\n"))});
- return (doc.body.textContent||"").replace(/\\u00a0/g," ").replace(/[ \\t]+\\n/g,"\\n").replace(/\\n{3,}/g,"\\n\\n").trim();
+ doc.querySelectorAll("br").forEach(n=>n.replaceWith(document.createTextNode("\n")));
+ doc.querySelectorAll("p,div").forEach(n=>{if(n.textContent.trim())n.append(document.createTextNode("\n"))});
+ return (doc.body.textContent||"").replace(/\u00a0/g," ").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
 }
 function parseLetterboxdRSS(xmlText,username){
  const xml=new DOMParser().parseFromString(xmlText,"application/xml");
@@ -78,10 +79,9 @@ async function loadLetterboxdReviews(event){
  if(!username){status.textContent="Enter a valid public Letterboxd username or profile URL.";status.classList.add("error");return}
  button.disabled=true;status.textContent="Looking for public written reviews…";$("#lbReviews").replaceChildren();
  const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
- // cors.dev is a documented free GET-only public relay; allOrigins is a fallback.
  const attempts=[
-   async()=>fetch("https://proxy.cors.dev/"+feedUrl,{headers:{Accept:"application/rss+xml, application/xml, text/xml, */*"}}),
-   async()=>fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(feedUrl))
+   async()=>fetch("https://proxy.cors.dev/"+feedUrl,{credentials:"omit",headers:{Accept:"application/rss+xml, application/xml, text/xml, */*"}}),
+   async()=>fetch("https://api.allorigins.win/raw?url="+encodeURIComponent(feedUrl),{credentials:"omit"})
  ];
  let lastError=null;
  try{
