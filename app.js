@@ -275,7 +275,22 @@ function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren()
 async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1"),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);status("#serializdStatus","Profile shortcut saved. Serializd's unofficial public endpoint may be unavailable or require a session; no password was collected.","error");console.warn(err)}finally{button.disabled=false}}
 function setPoster(img,name){poster=img;$("#uploadTitle").textContent=name;$$(".poster-preset").forEach(b=>b.classList.toggle("is-selected",b.dataset.posterName===name));render()}
 function loadSample(button){const url=button.dataset.posterUrl,name=button.dataset.posterName;button.disabled=true;$("#previewStatus").textContent="LOADING FILM STILL…";(async()=>{try{const blob=await fetchImage(url);if(posterObjectUrl)URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=URL.createObjectURL(blob);const img=new Image();img.onload=()=>{setPoster(img,name);button.disabled=false};img.onerror=()=>{button.disabled=false;$("#previewStatus").textContent="IMAGE FAILED TO LOAD"};img.src=posterObjectUrl}catch(e){button.disabled=false;$("#previewStatus").textContent="SAMPLE UNAVAILABLE";status("#lbStatus","This sample source is unavailable. Upload a still from your device or try another sample.","error");console.warn(e)}})()}
-async function fetchImage(url){let last;for(const target of ["https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)]){try{const c=new AbortController(),timer=setTimeout(()=>c.abort(),16000);try{const r=await fetch(target,{credentials:"omit",signal:c.signal});if(!r.ok)throw Error("HTTP "+r.status);const b=await r.blob();if(!b.type.startsWith("image/"))throw Error("Not an image");return b}finally{clearTimeout(timer)}}catch(e){last=e}}throw last||Error("Image unavailable")}
+async function fetchImage(url){
+  let lastError=null;
+  const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
+  for(const target of targets){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),16000);
+    try{
+      const response=await fetch(target,{mode:"cors",credentials:"omit",signal:controller.signal});
+      if(!response.ok)throw Error("Image request failed ("+response.status+")");
+      const blob=await response.blob();
+      if(!blob.type.startsWith("image/"))throw Error("The returned file is not an image");
+      return blob;
+    }catch(error){lastError=error}
+    finally{clearTimeout(timer)}
+  }
+  throw lastError||Error("Image unavailable");
+}
 function setMsg(s,error=false){const e=$("#authMessage");e.textContent=s;e.classList.toggle("error",error)}
 function setMode(mode){authMode=mode;$$("[data-mode]").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#authHeading").innerHTML=mode==="signup"?"Make it <em>personal.</em>":"Welcome <em>back.</em>";$("#authDescription").textContent=mode==="signup"?"Create an account with your email and a strong password.":"Sign in to your Framix account.";$("#authSubmit").innerHTML=mode==="signup"?"Create account →":"Sign in →";$("#authPassword").autocomplete=mode==="signup"?"new-password":"current-password";$("#forgotPassword").hidden=mode!=="signin";setMsg("")}
 function updateAuth(session){const email=session?.user?.email;$("#accountLabel").textContent=email?"Signed in · "+email:"Your film journal, reframed." ;$("#authOpen").hidden=!!email;$("#signOut").hidden=!email}
