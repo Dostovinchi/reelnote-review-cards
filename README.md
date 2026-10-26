@@ -50,3 +50,15 @@ The `api/reviews.js` and `vercel.json` files are retained for optional Vercel ho
 - Never commit a Supabase `service_role` key, SMTP password, or other server secret.
 - Do not type a Letterboxd password into Framix.
 - Keep the repository public for free GitHub Pages hosting; GitHub Pages has usage/acceptable-use limits and is intended for static sites, not for sensitive transactions or as a free commercial SaaS host. See [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits).
+
+
+## TMDB poster search and theme collections
+
+The poster editor includes a TMDB title search for movies and TV series. Get your own API key in [TMDB account API settings](https://www.themoviedb.org/settings/api), paste the v3 API key into the editor, and choose **Save locally**. The key is stored in that browser's local storage; it is not committed to this repository or sent to a Framix backend. Do not paste a private key into public issues or commit it to GitHub. TMDB access is subject to its current terms and attribution requirements. Framix displays the required statement: “This product uses the TMDB API but is not endorsed or certified by TMDB.”
+
+Theme collections:
+- **Framix · General** — Noir, Midnight, Ember, Archive.
+- **Letterboxd** — Green, Red, Blue, Gold inspired card palettes.
+- **Serializd** — Violet, Pink, Cyan, Lime TV-diary palettes.
+
+TMDB search needs your own API key; manual uploads and poster export remain available without it. Check TMDB's current API terms for eligibility and use restrictions.

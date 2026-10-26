@@ -57,8 +57,8 @@
   <div class="studio-grid">
     <form id="cardForm" class="editor">
       <div class="panel-heading"><span class="step-number">A</span><div><h3>Film details</h3><p>The title, your rating, your words.</p></div></div>
-      <label for="filmTitle">FILM OR SERIES TITLE</label><input id="filmTitle" maxlength="100" value="In the Mood for Love" required>
-      <div class="field-row"><div><label for="filmYear">YEAR / DIRECTOR</label><input id="filmYear" maxlength="60" value="2000 · Wong Kar-wai"></div><div><label for="rating">YOUR RATING</label><select id="rating"><option value="5">5 / 5</option><option value="4.5">4.5 / 5</option><option value="4">4 / 5</option><option value="3.5">3.5 / 5</option><option value="3">3 / 5</option><option value="2.5">2.5 / 5</option><option value="2">2 / 5</option><option value="1.5">1.5 / 5</option><option value="1">1 / 5</option><option value="0.5">0.5 / 5</option></select></div></div>
+      <label id="filmTitleLabel" for="filmTitle">FILM OR SERIES TITLE</label><input id="filmTitle" maxlength="100" value="In the Mood for Love" required>
+      <div class="field-row"><div><label id="filmYearLabel" for="filmYear">YEAR / DIRECTOR</label><input id="filmYear" maxlength="60" value="2000 · Wong Kar-wai"></div><div><label for="rating">YOUR RATING</label><select id="rating"><option value="5">5 / 5</option><option value="4.5">4.5 / 5</option><option value="4">4 / 5</option><option value="3.5">3.5 / 5</option><option value="3">3 / 5</option><option value="2.5">2.5 / 5</option><option value="2">2 / 5</option><option value="1.5">1.5 / 5</option><option value="1">1 / 5</option><option value="0.5">0.5 / 5</option></select></div></div>
       <label for="reviewText">YOUR REVIEW <span class="optional">OPTIONAL</span></label><textarea id="reviewText" maxlength="360" rows="3" placeholder="What stayed with you?">The kind of story that follows you home.</textarea><div class="counter"><span id="charCount">0 / 360</span><span>Keep it personal.</span></div>
       <div class="editor-divider"></div>
       <div class="panel-heading"><span class="step-number">B</span><div><h3>Poster artwork</h3><p>Pick a sample film still or upload your own.</p></div></div>
@@ -69,11 +69,26 @@
       </div>
       <label class="upload" for="posterUpload"><span class="upload-icon">＋</span><span class="upload-copy"><strong id="uploadTitle">Upload your own poster / still</strong><small>JPG, PNG or WebP · max 12 MB</small></span><span class="upload-action">Browse</span></label>
       <input id="posterUpload" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <div class="tmdb-tool">
+        <div class="panel-heading"><span class="step-number">↗</span><div><h3>Find official poster artwork</h3><p>Search movies and TV shows in TMDB.</p></div></div>
+        <label for="tmdbQuery">MOVIE OR TV TITLE</label>
+        <div class="input-action tmdb-query-row"><input id="tmdbQuery" type="search" maxlength="120" placeholder="Search a title, e.g. The Bear"><button id="tmdbSearch" class="button primary" type="button">Search ↗</button></div>
+        <details class="tmdb-key-details"><summary>TMDB API key (free for non-commercial use)</summary>
+          <p class="tmdb-help">Get a v3 API key from your TMDB account. The key is stored only in this browser, not committed to GitHub.</p>
+          <label for="tmdbKey">TMDB V3 API KEY</label>
+          <div class="input-action"><input id="tmdbKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key"><button id="tmdbSaveKey" class="button quiet" type="button">Save locally</button></div>
+          <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" class="profile-link">Get your TMDB API key ↗</a>
+        </details>
+        <p id="tmdbStatus" class="connection-status" role="status" aria-live="polite">Add your TMDB key once, then search for posters. Manual uploads still work without a key.</p>
+        <div id="tmdbResults" class="tmdb-results" aria-live="polite"></div>
+      </div>
       <div class="editor-divider"></div>
-      <div class="panel-heading"><span class="step-number">C</span><div><h3>Poster theme</h3><p>Choose a layout and colour grade.</p></div></div>
-      <label for="posterLayout">POSTER FORMAT</label><select id="posterLayout"><option value="poster">Cinematic poster · full image</option><option value="review">Review card · image + rating</option><option value="editorial">Editorial · clean &amp; minimal</option></select>
+      <div class="panel-heading"><span class="step-number">C</span><div><h3>Poster theme</h3><p>Choose which style collection to use.</p></div></div>
+      <label for="themeFamily">THEME COLLECTION</label>
+      <select id="themeFamily"><option value="general">Framix · General</option><option value="letterboxd">Letterboxd · Classic card styles</option><option value="serializd">Serializd · TV diary styles</option></select>
+      <label for="posterLayout">POSTER STYLE</label><select id="posterLayout"><option value="poster">Cinematic poster · full image</option><option value="review">Review card · image + rating</option><option value="editorial">Editorial · clean &amp; minimal</option></select>
       <label>COLOUR GRADE</label>
-      <div class="themes">
+      <div class="themes" id="themeSwatches">
         <label><input type="radio" name="theme" value="noir" checked><span class="swatch noir"></span><b>Noir</b></label>
         <label><input type="radio" name="theme" value="midnight"><span class="swatch midnight"></span><b>Midnight</b></label>
         <label><input type="radio" name="theme" value="ember"><span class="swatch ember"></span><b>Ember</b></label>
@@ -87,5 +102,15 @@
     <aside class="preview"><div class="preview-top"><span><i></i> LIVE PREVIEW</span><span>1080 × 1350 PX</span></div><div class="canvas-wrap"><canvas id="cardCanvas" width="1080" height="1350" aria-label="Live cinematic poster preview"></canvas></div><div class="preview-bottom"><span><b>FRAMIX STUDIO</b><small>Your taste, in a frame.</small></span><span id="previewStatus" role="status">READY TO FRAME ↗</span></div></aside>
   </div>
 </section></main>
-<footer><a class="brand" href="#top"><span class="brand-mark">f.</span><span>framix</span></a><span>MADE FOR THE FILMS THAT STAY WITH YOU.</span><a href="https://github.com/Dostovinchi/reelnote-review-cards/blob/main/README.md" target="_blank" rel="noopener noreferrer">Setup &amp; privacy ↗</a></footer>
+<footer class="site-footer">
+  <a class="brand" href="#top"><span class="brand-mark">f.</span><span>framix</span></a>
+  <span>MADE FOR THE FILMS THAT STAY WITH YOU.</span>
+  <a href="https://github.com/Dostovinchi/reelnote-review-cards/blob/main/README.md" target="_blank" rel="noopener noreferrer">Setup &amp; privacy ↗</a>
+  <div class="tmdb-attribution" id="tmdbAttribution">
+    <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" aria-label="The Movie Database (TMDB)">
+      <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_long_2-9665a76b1ae401a510ec1e0ca40ddcb3b0cfe45f1d51b77a308fea0845885648.svg" alt="The Movie Database (TMDB)" width="118" height="20" loading="lazy">
+    </a>
+    <small>This product uses the TMDB API but is not endorsed or certified by TMDB.</small>
+  </div>
+</footer>
 <dialog id="authDialog"><form id="authForm" class="auth-card"><button type="button" class="close" id="authClose">×</button><p class="eyebrow">YOUR PERSONAL FILM JOURNAL</p><h2 id="authHeading">Welcome <em>back.</em></h2><p id="authDescription" class="muted">Sign in to your Framix account. Card creation works without an account.</p><div id="authSetupNote" class="auth-setup-note" hidden><strong>Accounts aren't connected yet.</strong><p>Framix is hosted as a free static site. To securely create accounts, it needs your own free Supabase project. No password will be saved until the project is configured.</p><a href="https://github.com/Dostovinchi/reelnote-review-cards/blob/main/README.md#turn-on-secure-sign-in-free-tier-setup" target="_blank" rel="noopener noreferrer">Open the free setup guide ↗</a><p class="auth-small">You can make and download posters without signing in.</p></div><div id="authFields" hidden><div class="tabs"><button type="button" class="active" data-mode="signin">Sign in</button><button type="button" data-mode="signup">Create account</button></div><label for="authEmail">EMAIL ADDRESS</label><input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com"><label for="authPassword">PASSWORD</label><input id="authPassword" type="password" minlength="8" autocomplete="current-password" required placeholder="At least 8 characters"><button class="button primary download" id="authSubmit" type="submit">Sign in →</button><button class="forgot" id="forgotPassword" type="button">Forgot your password?</button></div><p id="authMessage" role="status"></p></form></dialog><dialog id="resetDialog"><form id="resetForm" class="auth-card"><button type="button" class="close" id="resetClose">×</button><h2>Choose a new <em>password.</em></h2><label for="newPassword">NEW PASSWORD</label><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required><button class="button primary download" type="submit">Update password →</button><p id="resetMessage" role="status"></p></form></dialog></body></html>
