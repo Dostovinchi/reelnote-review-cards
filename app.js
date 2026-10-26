@@ -298,7 +298,13 @@ function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.
 
 $("#themeFamily").addEventListener("change",()=>{setThemeOptions();const family=$("#themeFamily").value;$("#filmTitleLabel").textContent=family==="serializd"?"TV SERIES TITLE":family==="letterboxd"?"FILM TITLE":"FILM OR SERIES TITLE";$("#filmYearLabel").textContent=family==="serializd"?"YEAR / CREATOR":family==="letterboxd"?"YEAR / DIRECTOR":"YEAR / DIRECTOR";});
 $("#themeSwatches").addEventListener("change",render);
-$("#tmdbSaveKey").addEventListener("click",()=>{const key=val("#tmdbKey");if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;setTMDBStatus("TMDB key saved in this browser only. Try searching a title.","success")});
+$("#tmdbSaveKey").addEventListener("click",()=>{
+ const key=val("#tmdbKey");
+ if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
+ safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;
+ setTMDBStatus("TMDB key saved locally. Looking up the current film/show…","success");
+ void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:$("#themeFamily").value==="serializd"?"tv":"movie"});
+});
 $("#tmdbSearch").addEventListener("click",searchTMDB);$("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;setThemeOptions();
 $("#cardForm").addEventListener("input",()=>{$("#charCount").textContent=$("#reviewText").value.length+" / 360";render()});
