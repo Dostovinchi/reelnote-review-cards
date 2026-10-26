@@ -233,7 +233,7 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
   }
 }
 
-let poster=null,client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],posterObjectUrl=null;
+let poster=null,client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],posterObjectUrl=null,lastReviewMediaHint="movie";
 const val=s=>$(s).value.trim(), themeName=()=>$('input[name="theme"]:checked')?.value||($("#themeFamily")?.value==="letterboxd"?"lb_green":$("#themeFamily")?.value==="serializd"?"sz_violet":"noir");
 function activeTheme(){const family=themeFamilies[$("#themeFamily")?.value||"general"]||themeFamilies.general;return family.themes[themeName()]||Object.values(family.themes)[0]}
 function setThemeOptions(){const family=themeFamilies[$("#themeFamily").value]||themeFamilies.general,grid=$("#themeSwatches");grid.replaceChildren();Object.entries(family.themes).forEach(([key,t],i)=>{const label=document.createElement("label"),radio=document.createElement("input"),sw=document.createElement("span"),name=document.createElement("b");radio.type="radio";radio.name="theme";radio.value=key;radio.checked=i===0;sw.className="swatch";sw.style.background="linear-gradient(135deg,"+t.bg+" 40%,"+t.accent+" 41%, "+t.accent+" 48%,"+t.bg+" 49%)";name.textContent=key.replace(/^lb_|^sz_/,"").replace(/_/g," ").replace(/^./,x=>x.toUpperCase());label.append(radio,sw,name);grid.append(label)});render()}
@@ -249,8 +249,8 @@ function render(){
  else{const g=ctx.createRadialGradient(W*.72,H*.23,10,W*.72,H*.23,W*.8);g.addColorStop(0,t.accent+"66");g.addColorStop(1,t.bg);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle=t.accent+"33";ctx.lineWidth=2;[300,355].forEach(r=>{ctx.beginPath();ctx.arc(W*.72,H*.23,r,0,Math.PI*2);ctx.stroke()})}
  if(layout!=="poster"){ctx.fillStyle=t.bg;ctx.fillRect(0,imageHeight,W,H-imageHeight)}
  const footerY=H-310;
- ctx.fillStyle=t.ink;ctx.font="500 18px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("FRAMIX / FILM JOURNAL",m,112);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText(layout==="poster"?"CINEMATIC POSTER":layout==="review"?"PERSONAL REVIEW":"EDITORIAL FRAME",W-m,112);
- ctx.strokeStyle=t.accent+"66";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,151);ctx.lineTo(W-m,151);ctx.stroke();
+ ctx.fillStyle=t.ink;ctx.font="500 18px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("FRAMIX / FILM JOURNAL",m,240);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText(layout==="poster"?"CINEMATIC POSTER":layout==="review"?"PERSONAL REVIEW":"EDITORIAL FRAME",W-m,240);
+ ctx.strokeStyle=t.accent+"66";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,282);ctx.lineTo(W-m,282);ctx.stroke();
  let y=layout==="poster"?(poster?H*.45:H*.37):layout==="review"?imageHeight+38:imageHeight+35;
  ctx.textAlign="left";ctx.fillStyle=t.accent;ctx.font="500 18px 'DM Mono',monospace";ctx.fillText(layout==="poster"?"A FILM TO REMEMBER":layout==="review"?"RECENTLY WATCHED":"SELECTED FRAME",m,y);y+=42;
  ctx.fillStyle=t.ink;const titleSize=layout==="review"?62:layout==="editorial"?70:76;ctx.font="600 "+titleSize+"px 'Playfair Display',Georgia,serif";y=textBlock(title,m,y,W-2*m,Math.round(titleSize*1.08),2)+8;
@@ -303,7 +303,7 @@ $("#tmdbSaveKey").addEventListener("click",()=>{
  if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
  safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;
  setTMDBStatus("TMDB key saved locally. Looking up the current film/show…","success");
- void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:$("#themeFamily").value==="serializd"?"tv":"movie"});
+ void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);$("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;setThemeOptions();
@@ -343,7 +343,7 @@ $("#lbReviews").addEventListener("click",event=>{
  $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
  $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
- void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:"movie"});
+ lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
 $("#serializdReviews").addEventListener("click",event=>{
@@ -358,7 +358,7 @@ $("#serializdReviews").addEventListener("click",event=>{
  $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
  $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
- void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:"tv"});
+ lastReviewMediaHint="tv";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#authOpen").addEventListener("click",()=>{setMode("signin");$("#authDialog").showModal()});$("#authClose").addEventListener("click",()=>$("#authDialog").close());$("#resetClose").addEventListener("click",()=>$("#resetDialog").close());$$("[data-mode]").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){$("#authSetupNote").hidden=false;$("#authFields").hidden=true;return}const email=val("#authEmail"),password=$("#authPassword").value,button=$("#authSubmit");button.disabled=true;setMsg(authMode==="signup"?"Creating account…":"Signing in…");try{const r=authMode==="signup"?await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(authMode==="signup"&&!r.data.session)setMsg("Account created. Check your email to verify your address.");else{setMsg("You're signed in.");setTimeout(()=>$("#authDialog").close(),650)}}catch(e){setMsg(e.message||"Sign-in failed. Check your details.",true)}finally{button.disabled=false}});
