@@ -1,24 +1,24 @@
-# Reelnote
+# Framix — cinematic review card studio
 
-A mobile-first review-card website. It lets someone choose from their recent **public Letterboxd written reviews**, then opens the card maker with that review URL ready to use.
+A static, GitHub Pages-friendly rebrand of Reelnote. The poster/review card creator is integrated into the homepage, with live canvas preview and local PNG export.
 
-## Publish it from GitHub
+## Included
+- `index.html` — landing page, integrated editor, preview, authentication dialogs.
+- `styles.css` — responsive visual system.
+- `app.js` — local card rendering/export and Supabase email/password auth.
+- `config.js` — public Supabase URL/key placeholders.
+- `supabase/schema.sql` — optional starter profile table with row-level security.
 
-1. Create a new GitHub repository and upload this `review-studio` folder.
-2. Import that repository into **Vercel**. The included `api/reviews.js` route is needed because browsers cannot reliably fetch Letterboxd RSS due to CORS.
-3. Use the Vercel URL as the link you send to friends. GitHub Pages alone can host the design, but it cannot run the review API or securely complete OAuth.
+## Enable real authentication
+1. Create a project at https://supabase.com/.
+2. In Project Settings → API, copy the project URL and publishable key (or legacy anon key).
+3. Add them to `config.js` as `supabaseUrl` and `supabaseAnonKey`.
+4. Enable Email under Authentication → Providers.
+5. Set the production GitHub Pages URL under Authentication → URL Configuration, including allowed redirects.
+6. Configure email verification, recovery templates, and preferably custom SMTP.
+7. Deploy on HTTPS and test sign-up, verification, sign-in, sign-out, and password recovery.
 
-## Turn on email sign-in
+The browser key is public. Never put a Supabase service_role key, database password, or other server secret in static frontend files. The card editor runs locally and does not save card content to a server.
 
-Create a Supabase project, enable Email/OTP sign-in, and add your deployed website URL to its redirect allow-list. Then place the project URL and publishable (anon) key in the `AUTH` object at the top of `app.js`.
-
-No email addresses, passwords, OAuth client secrets, or refresh tokens belong in the repository. Put server-only credentials in Vercel environment variables.
-
-## Account connections
-
-- **Letterboxd:** The website currently accepts a public username and reads the latest written reviews from the public RSS feed. For a true "Connect Letterboxd" authorization screen, register an OAuth application with Letterboxd and implement the callback/token exchange in serverless functions. Their OAuth authorization-code flow must not expose a client secret in browser code.
-- **Serializd:** The site saves a public profile reference only. Serializd does not provide a documented public OAuth connection comparable to Letterboxd's, so private-account linking is intentionally not claimed or implemented.
-
-## Limits
-
-Letterboxd RSS is a recent-activity feed, so older reviews may not appear. The card maker also uses public proxies for direct review-page fallback; a private proxy can be configured when a network blocks those proxies.
+## Deploy
+Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the published root. Google Fonts and Supabase JS are loaded from CDNs, so internet access is required for those assets.
