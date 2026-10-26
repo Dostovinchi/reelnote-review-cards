@@ -301,12 +301,59 @@ $("#themeSwatches").addEventListener("change",render);
 $("#tmdbSaveKey").addEventListener("click",()=>{const key=val("#tmdbKey");if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;setTMDBStatus("TMDB key saved in this browser only. Try searching a title.","success")});
 $("#tmdbSearch").addEventListener("click",searchTMDB);$("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;setThemeOptions();
-$("#cardForm").addEventListener("input",()=>{$("#charCount").textContent=$("#reviewText").value.length+" / 360";render()});$("#cardForm").addEventListener("change",render);
-$$(".poster-preset").forEach(b=>b.addEventListener("click",()=>{const sample=samples.find(x=>x.name===b.dataset.posterName);if(sample){$("#filmTitle").value=sample.name;loadSample(b)}}));
-$("#posterUpload").addEventListener("change",e=>{const file=e.target.files?.[0];if(!file)return;if(!["image/jpeg","image/png","image/webp"].includes(file.type)){status("#lbStatus","Use JPG, PNG or WebP.","error");return}if(file.size>12*1024*1024){status("#lbStatus","Image exceeds 12 MB. Choose a smaller file.","error");return}const reader=new FileReader();reader.onerror=()=>status("#lbStatus","Could not read that image.","error");reader.onload=()=>{const img=new Image();img.onload=()=>{if(posterObjectUrl){URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=null}poster=img;$("#uploadTitle").textContent=file.name.slice(0,35);$$(".poster-preset").forEach(b=>b.classList.remove("is-selected"));render()};img.onerror=()=>status("#lbStatus","Image could not be opened.","error");img.src=reader.result};reader.readAsDataURL(file)});
-$("#downloadCard").addEventListener("click",()=>{render();canvas.toBlob(blob=>{if(!blob){$("#previewStatus").textContent="EXPORT FAILED";return}const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="framix-"+(val("#filmTitle")||"review").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".png";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("#previewStatus").textContent="POSTER DOWNLOADED ✓"},"image/png")});
-$("#letterboxdForm").addEventListener("submit",loadLB);$("#lbReviews").addEventListener("click",e=>{const b=e.target.closest("button[data-review-index]");if(!b)return;const r=letterboxdReviews[Number(b.dataset.reviewIndex)];if(!r)return;$("#filmTitle").value=r.title.slice(0,100);$("#filmYear").value=[r.year,r.date?"Watched "+r.date:""].filter(Boolean).join(" · ").slice(0,60);if(r.rating!==null){$("#rating").value=String([...$("#rating").options].map(o=>+o.value).sort((a,b)=>Math.abs(a-r.rating)-Math.abs(b-r.rating))[0]);$("#showRating").checked=true}else $("#showRating").checked=false;$("#reviewText").value=(r.text||"").slice(0,360);$("#showReview").checked=!!r.text;$("#charCount").textContent=$("#reviewText").value.length+" / 360";render();$("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})});
-$("#serializdForm").addEventListener("submit",loadSZ);$("#serializdReviews").addEventListener("click",e=>{const b=e.target.closest("button[data-serializd-index]");if(!b)return;const r=serializdReviews[+b.dataset.serializdIndex];if(!r)return;$("#filmTitle").value=r.title.slice(0,100);$("#filmYear").value=[r.year,r.date].filter(Boolean).join(" · ").slice(0,60);if(r.rating!==null){$("#rating").value=String([...$("#rating").options].map(o=>+o.value).sort((a,b)=>Math.abs(a-r.rating)-Math.abs(b-r.rating))[0]);$("#showRating").checked=true}else $("#showRating").checked=false;$("#reviewText").value=r.text.slice(0,360);$("#showReview").checked=!!r.text;$("#charCount").textContent=$("#reviewText").value.length+" / 360";render();$("#studio").scrollIntoView({behavior:"smooth"})});
+$("#cardForm").addEventListener("input",()=>{$("#charCount").textContent=$("#reviewText").value.length+" / 360";render()});
+$("#cardForm").addEventListener("change",render);
+$$(".poster-preset").forEach(button=>button.addEventListener("click",()=>{const sample=samples.find(item=>item.name===button.dataset.posterName);if(sample){$("#filmTitle").value=sample.name;loadSample(button)}}));
+$("#posterUpload").addEventListener("change",event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ if(!["image/jpeg","image/png","image/webp"].includes(file.type)){status("#lbStatus","Use JPG, PNG or WebP.","error");return}
+ if(file.size>12*1024*1024){status("#lbStatus","Image exceeds 12 MB. Choose a smaller file.","error");return}
+ const reader=new FileReader();reader.onerror=()=>status("#lbStatus","Could not read that image.","error");
+ reader.onload=()=>{const img=new Image();img.onload=()=>{
+   if(posterObjectUrl){URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=null}
+   poster=img;activePosterPath="";$("#uploadTitle").textContent=file.name.slice(0,35);
+   $$(".poster-preset").forEach(button=>button.classList.remove("is-selected"));render();
+ };img.onerror=()=>status("#lbStatus","Image could not be opened.","error");img.src=reader.result};
+ reader.readAsDataURL(file);
+});
+$("#downloadCard").addEventListener("click",()=>{
+ render();canvas.toBlob(blob=>{
+   if(!blob){$("#previewStatus").textContent="EXPORT FAILED — TRY AGAIN";return}
+   const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+   anchor.href=url;anchor.download="framix-story-"+(val("#filmTitle")||"review").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".png";
+   anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1200);$("#previewStatus").textContent="INSTAGRAM STORY DOWNLOADED ✓";
+ },"image/png");
+});
+$("#letterboxdForm").addEventListener("submit",loadLB);
+$("#lbReviews").addEventListener("click",event=>{
+ const button=event.target.closest("button[data-review-index]");if(!button)return;
+ const review=letterboxdReviews[Number(button.dataset.reviewIndex)];if(!review)return;
+ $("#filmTitle").value=review.title.slice(0,100);
+ $("#filmYear").value=[review.year,review.date?"Watched "+review.date:""].filter(Boolean).join(" · ").slice(0,60);
+ if(review.rating!==null){
+   $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
+   $("#showRating").checked=true;
+ }else $("#showRating").checked=false;
+ $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
+ $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
+ $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+ void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:"movie"});
+});
+$("#serializdForm").addEventListener("submit",loadSZ);
+$("#serializdReviews").addEventListener("click",event=>{
+ const button=event.target.closest("button[data-serializd-index]");if(!button)return;
+ const review=serializdReviews[Number(button.dataset.serializdIndex)];if(!review)return;
+ $("#filmTitle").value=review.title.slice(0,100);
+ $("#filmYear").value=[review.year,review.date].filter(Boolean).join(" · ").slice(0,60);
+ if(review.rating!==null){
+   $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
+   $("#showRating").checked=true;
+ }else $("#showRating").checked=false;
+ $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
+ $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
+ $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+ void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:"tv"});
+});
 $("#authOpen").addEventListener("click",()=>{setMode("signin");$("#authDialog").showModal()});$("#authClose").addEventListener("click",()=>$("#authDialog").close());$("#resetClose").addEventListener("click",()=>$("#resetDialog").close());$$("[data-mode]").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){$("#authSetupNote").hidden=false;$("#authFields").hidden=true;return}const email=val("#authEmail"),password=$("#authPassword").value,button=$("#authSubmit");button.disabled=true;setMsg(authMode==="signup"?"Creating account…":"Signing in…");try{const r=authMode==="signup"?await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(authMode==="signup"&&!r.data.session)setMsg("Account created. Check your email to verify your address.");else{setMsg("You're signed in.");setTimeout(()=>$("#authDialog").close(),650)}}catch(e){setMsg(e.message||"Sign-in failed. Check your details.",true)}finally{button.disabled=false}});
 $("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("Configure Supabase first.",true);return}const email=val("#authEmail");if(!email){setMsg("Enter your email first.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("If the account exists, a recovery email has been requested.")}catch(e){setMsg(e.message||"Could not request recovery.",true)}});
