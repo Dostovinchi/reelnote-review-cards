@@ -62,3 +62,14 @@ Theme collections:
 - **Serializd** — Violet, Pink, Cyan, Lime TV-diary palettes.
 
 TMDB search needs your own API key; manual uploads and poster export remain available without it. Check TMDB's current API terms for eligibility and use restrictions.
+
+
+## Automatic poster selection and Instagram Story export
+
+When a Letterboxd review is selected, Framix automatically searches TMDB using the review title and release year. When a Serializd diary entry is selected, it searches TV titles first. The closest matching result is selected automatically only when the title looks like a reasonable match. The selected title's TMDB Images endpoint is then used to show its available poster-variant list; choose any thumbnail to replace the poster. If the key is saved after selecting a review, Framix re-runs the lookup for the current title.
+
+TMDB documents the per-title poster/image endpoint for movies and TV, and image.tmdb.org URLs are built from the returned file paths. See the [TMDB movie images API](https://developer.themoviedb.org/reference/movie-images), [image URL basics](https://developer.themoviedb.org/docs/image-basics), and [application authentication](https://developer.themoviedb.org/docs/authentication-application).
+
+The exported canvas is **1080 × 1920 px (9:16)**, matching Instagram Story dimensions. The download filename starts with framix-story-. The story layout uses adjusted top/bottom safe margins; review content may still need trimming if a particularly long note is used.
+
+The API key is kept in this browser's local storage. Treat it like a personal credential and avoid sharing it in screenshots or public issue reports. Automatic selection depends on network access and TMDB's match quality. If TMDB has no poster for a title or its API is unavailable, the editor remains usable with your own upload.
