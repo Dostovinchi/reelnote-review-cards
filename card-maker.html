@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>صانع بطاقات المراجعات</title>
+<style>
+:root{--bg:#0f0f10;--card:#1b1b1d;--in:#111113;--bd:#2c2c30;--tx:#f2f2f2;--ac:#e8763c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding:16px}
+main{max-width:520px;margin:0 auto}
+h1{text-align:center;font-size:22px;margin:8px 0 14px}
+#out{display:block;width:300px;max-width:80%;aspect-ratio:9/16;margin:0 auto;border-radius:18px;background:#000;-webkit-touch-callout:default}
+.hint{text-align:center;color:#8d8d93;font-size:14px;margin:10px 0}
+.styles{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px}
+.styles button{flex:0 0 auto;background:var(--card);color:var(--tx);border:2px solid var(--bd);border-radius:12px;padding:10px 14px;font:inherit;font-size:14px;cursor:pointer}
+.styles button.on{border-color:var(--ac)}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:12px 0}
+label{display:block;color:#9b9ba1;font-size:13px;margin:10px 0 6px}
+input[type=text],input[type=url],input:not([type]),select,textarea{width:100%;background:var(--in);color:var(--tx);border:1px solid var(--bd);border-radius:12px;padding:14px;font:inherit;font-size:16px}
+textarea{min-height:140px;resize:vertical;line-height:1.5}
+input[type=color]{width:100%;height:46px;background:var(--in);border:1px solid var(--bd);border-radius:12px;padding:4px}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.btn{width:100%;border:0;border-radius:16px;background:var(--ac);color:#111;font:inherit;font-size:17px;padding:18px;margin-top:12px;cursor:pointer}
+.btn.sec{background:#2a2a2e;color:var(--tx);font-size:15px;padding:14px}
+.up{flex:1;display:flex;align-items:center;justify-content:center;border:1px dashed #44444a;border-radius:12px;padding:16px 6px;font-size:14px;cursor:pointer;text-align:center}
+.up input{display:none}
+.chk{display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--tx);font-size:14px}
+#st{text-align:center;font-size:13px;color:#e8a07c;min-height:18px;margin-top:8px}
+details summary{cursor:pointer;color:#9b9ba1;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>صانع بطاقات المراجعات</h1>
+<img id="out" alt="البطاقة">
+<div class="hint">اضغط مطولاً على الصورة لحفظها</div>
+<div class="styles" id="styles"></div>
+
+<div class="panel">
+  <label>رابط المراجعة من Letterboxd</label>
+  <input id="lb" dir="ltr" placeholder="https://letterboxd.com/user/film/12-angry-men/">
+  <label>مفتاح TMDB (مجاني، يتحفظ على جهازك)</label>
+  <input id="key" dir="ltr" placeholder="TMDB API key (v3)">
+  <label>الفيلم</label>
+  <select id="film"></select>
+  <button class="btn" id="fetch">جلب البوستر والخلفية والمراجعة</button>
+  <div id="st"></div>
+  <details>
+    <summary>بروكسي خاص (اختياري، لو الجلب ما اشتغل)</summary>
+    <input id="px" dir="ltr" placeholder="https://your-worker.workers.dev">
+  </details>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <label class="up">رفع البوستر<input type="file" accept="image/*" id="upP"></label>
+    <label class="up">رفع لقطة الخلفية<input type="file" accept="image/*" id="upB"></label>
+  </div>
+  <label>اسم الفيلم</label><input id="title" dir="auto">
+  <label>المخرج والسنة</label><input id="meta" dir="auto">
+  <div class="row">
+    <div><label>التقييم</label><select id="rate"></select></div>
+    <div><label>اسم المراجع</label><input id="who" dir="auto"></div>
+  </div>
+  <label>نص المراجعة (اكتب مراجعتك أو اجلبها من Letterboxd)</label>
+  <textarea id="rev" dir="auto" placeholder="اكتب مراجعتك هنا..."></textarea>
+  <button class="btn sec" id="fetchRev">جلب المراجعة والتقييم من Letterboxd فقط</button>
+  <label class="chk"><input type="checkbox" id="showRev" checked> إظهار المراجعة على البطاقة</label>
+  <div class="row">
+    <div><label>لون النص</label><input type="color" id="tc" value="#ffffff"></div>
+    <div><label>لون النجوم</label><input type="color" id="sc" value="#00e054"></div>
+  </div>
+  <label>تعميق الخلفية</label>
+  <input type="range" id="dark" min="0" max="90" value="45" style="width:100%">
+  <label class="chk"><input type="checkbox" id="showWho" checked> إظهار اسم المراجع</label>
+</div>
+<button class="btn" id="dl">حفظ البطاقة</button>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const W=1080,H=1920;
+const STYLES=[['medium','بوستر وسط'],['big','بوستر كبير'],['small','بوستر صغير'],['blur','خلفية مموهة'],['starsfirst','نجوم أولاً'],['text','نص فقط'],['tilt','بوستر مائل'],['polaroid','بولارويد'],['banner','بانر علوي'],['cinema','سينما'],['glass','زجاجي'],['color','لون البوستر'],['fullposter','بوستر كامل']];
+let style='medium',poster=null,back=null,results=[];
+
+STYLES.forEach(([k,l])=>{const b=document.createElement('button');b.textContent=l;b.dataset.k=k;if(k===style)b.className='on';
+  b.onclick=()=>{style=k;document.querySelectorAll('#styles button').forEach(x=>x.classList.toggle('on',x===b));draw()};$('styles').appendChild(b)});
+for(let v=5;v>=0.5;v-=0.5){const o=document.createElement('option');o.value=v;o.textContent=v+' من 5';if(v===4)o.selected=true;$('rate').appendChild(o)}
+try{$('key').value=localStorage.getItem('tmdbKey')||'';$('px').value=localStorage.getItem('lbProxy')||''}catch(e){}
+const sharedReview=new URLSearchParams(location.search).get('review');
+if(sharedReview)$('lb').value=sharedReview;
+$('key').onchange=()=>{try{localStorage.setItem('tmdbKey',$('key').value.trim())}catch(e){}};
+$('px').onchange=()=>{try{localStorage.setItem('lbProxy',$('px').value.trim())}catch(e){}};
+['title','meta','who','rate','tc','sc','dark','showWho','rev','showRev'].forEach(i=>$(i).addEventListener('input',draw));
+const say=t=>$('st').textContent=t||'';
+
+function loadImg(src,cors){return new Promise((res,rej)=>{const i=new Image();if(cors)i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=src})}
+function upload(inp,set){inp.onchange=async()=>{const f=inp.files[0];if(!f)return;set(await loadImg(URL.createObjectURL(f)));draw()}}
+upload($('upP'),i=>poster=i);upload($('upB'),i=>back=i);
+
+const api=async(path,q={})=>{const k=$('key').value.trim();if(!k)throw new Error('أدخل مفتاح TMDB أولاً');
+  const u=new URL('https://api.themoviedb.org/3'+path);u.searchParams.set('api_key',k);for(const a in q)u.searchParams.set(a,q[a]);
+  const r=await fetch(u.toString());if(!r.ok)throw new Error(r.status===401?'مفتاح TMDB غير صحيح':'تعذر الاتصال بـ TMDB');return r.json()};
+
+async function search(){
+  const m=$('lb').value.match(/\/film\/([^\/?#]+)/);
+  if(!m)throw new Error('رابط Letterboxd غير صحيح');
+  let slug=m[1],year='';const y=slug.match(/-(\d{4})$/);if(y){year=y[1];slug=slug.slice(0,-5)}
+  const q={query:slug.replace(/-/g,' ')};if(year)q.year=year;
+  const d=await api('/search/movie',q);const norm=t=>(t||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(),want=norm(slug);
+  results=d.results.slice().sort((a,b)=>((norm(b.title)===want)-(norm(a.title)===want))||((b.vote_count||0)-(a.vote_count||0))).slice(0,10);
+  if(!results.length)throw new Error('ما لقينا الفيلم');
+  $('film').innerHTML='';results.forEach(r=>{const o=document.createElement('option');o.value=r.id;
+    o.textContent=r.title+' ('+(r.release_date||'').slice(0,4)+')';$('film').appendChild(o)});
+}
+$('lb').onchange=()=>{results=[];search().catch(e=>say(e.message))};
+
+/* ---------- Letterboxd fetching (fixed) ---------- */
+// fetch a URL through CORS proxies; `ok` validates the response so junk/error pages are rejected
+async function viaProxy(url,ok){
+  const enc=encodeURIComponent,bust=Date.now();
+  const list=[];
+  const custom=$('px').value.trim().replace(/\/+$/,'');
+  if(custom)list.push(u=>custom+'/?url='+enc(u));
+  list.push(
+    u=>'https://api.allorigins.win/raw?url='+enc(u)+'&_='+bust,
+    u=>'https://api.codetabs.com/v1/proxy/?quest='+enc(u),
+    u=>'https://corsproxy.io/?url='+enc(u),
+    u=>'https://thingproxy.freeboard.io/fetch/'+u
+  );
+  window.proxyLog=[];
+  for(const p of list){
+    const u=p(url);let host='?';try{host=new URL(u).hostname.replace(/^(api|www)\./,'')}catch(e){}
+    try{
+      const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),15000);
+      const r=await fetch(u,{signal:ctl.signal});clearTimeout(t);
+      if(!r.ok){window.proxyLog.push(host+':'+r.status);continue}
+      const x=await r.text();
+      if(ok(x))return x;
+      window.proxyLog.push(host+':bad');
+    }catch(e){window.proxyLog.push(host+':'+(e.name==='AbortError'?'timeout':'blocked'))}
+  }
+  throw new Error('proxy');
+}
+
+const cleanText=s=>(s||'').replace(/\u00a0/g,' ').replace(/\r/g,'').split(/\n+/)
+  .map(x=>x.replace(/[ \t]+/g,' ').trim()).filter(Boolean)
+  .filter(t=>!/^Watched on /i.test(t)&&!/^This review may contain spoilers/i.test(t)).join('\n');
+const cleanReviewHtml=html=>{
+  const doc=new DOMParser().parseFromString(html||'','text/html');
+  doc.querySelectorAll('img,figure,svg,script,style,button,.attribution,.js-review-reply-link').forEach(x=>x.remove());
+  doc.querySelectorAll('br').forEach(x=>x.replaceWith('\n'));
+  const blocks=[...doc.querySelectorAll('p,blockquote,li')].map(x=>cleanText(x.textContent));
+  return cleanText(blocks.length?blocks.join('\n'):doc.body.textContent);
+};
+const validRating=v=>Number.isFinite(v)&&v>=0.5&&v<=5&&Math.round(v*2)===v*2?v:null;
+const normalPath=p=>(p||'').replace(/\/+$/,'')||'/';
+
+function parseLetterboxdUrl(value){
+  let u;try{u=new URL(value)}catch(e){throw new Error('رابط Letterboxd غير صحيح')}
+  if(!/(^|\.)letterboxd\.com$/i.test(u.hostname))throw new Error('الرابط يجب أن يكون من Letterboxd');
+  const parts=u.pathname.split('/').filter(Boolean);
+  if(parts.length<3||parts[1]!=='film')throw new Error('ضع رابط مراجعة مثل: letterboxd.com/اسمك/film/اسم-الفيلم/');
+  if(parts[3]&&!/^\d+$/.test(parts[3]))throw new Error('رابط المراجعة غير مدعوم');
+  return {user:parts[0],slug:parts[2],n:parts[3]||'',path:normalPath('/'+parts.slice(0,parts[3]?4:3).join('/'))};
+}
+
+// 1) RSS is fast, but contains only the member's recent activity. A written review is
+// identified by its review GUID and non-metadata description; watch-only entries are skipped.
+async function fromRss(user,slug,n,targetPath){
+  const txt=await viaProxy('https://letterboxd.com/'+encodeURIComponent(user)+'/rss/',x=>/<item[\s>]/.test(x));
+  const xml=new DOMParser().parseFromString(txt,'text/xml');
+  if(xml.querySelector('parsererror'))throw new Error('rss');
+  const itemPath=it=>{try{return normalPath(new URL(it.getElementsByTagName('link')[0].textContent).pathname)}catch(e){return ''}};
+  const filmPath=normalPath('/'+user+'/film/'+slug);
+  const items=[...xml.getElementsByTagName('item')].filter(it=>itemPath(it)===filmPath||itemPath(it)===targetPath);
+  const getText=it=>{
+    const desc=it.getElementsByTagName('description')[0];
+    const guid=(it.getElementsByTagName('guid')[0]||{}).textContent||'';
+    if(!/letterboxd-review-/i.test(guid)||!desc)return '';
+    return cleanReviewHtml(desc.textContent);
+  };
+  const getRate=it=>{
+    const e=it.getElementsByTagNameNS('*','memberRating')[0]||it.getElementsByTagName('letterboxd:memberRating')[0];
+    let v=e?parseFloat(e.textContent):NaN;
+    if(!Number.isFinite(v)){
+      const title=(it.getElementsByTagName('title')[0]||{}).textContent||'';
+      const stars=title.split(' - ').pop()||'';v=(stars.match(/★/g)||[]).length+(stars.includes('½')?.5:0);
+    }
+    return validRating(v);
+  };
+  const matches=items.filter(it=>getText(it));
+  if(!matches.length)return null; // never use a watch entry as a review
+  matches.sort((a,b)=>Number(itemPath(b)===targetPath)-Number(itemPath(a)===targetPath));
+  const it=matches[0];
+  return {text:getText(it),rating:getRate(it)};
+}
+
+function reviewFromJsonLd(doc,targetPath){
+  for(const script of doc.querySelectorAll('script[type="application/ld+json"]')){
+    let value;try{value=JSON.parse(script.textContent.replace(/^\s*\/\*\s*<!\[CDATA\[\s*\*\/|\/\*\s*\]\]>\s*\*\/\s*$/g,''))}catch(e){continue}
+    const entries=Array.isArray(value)?value:[value];
+    for(const item of entries){
+      if(!item||String(item['@type']).toLowerCase()!=='review'||!item.reviewBody)continue;
+      let path='';try{path=normalPath(new URL(item.url,location.href).pathname)}catch(e){}
+      if(path&&path!==targetPath)continue;
+      return {text:cleanText(item.reviewBody),rating:validRating(parseFloat(item.reviewRating&&item.reviewRating.ratingValue))};
+    }
+  }
+  return null;
+}
+
+// 2) The review page works for older entries too. JSON-LD is the primary page source;
+// body/meta fallbacks are accepted only when Letterboxd explicitly labels the page a review.
+async function fromPage(user,slug,n,targetPath){
+  const url='https://letterboxd.com/'+encodeURIComponent(user)+'/film/'+encodeURIComponent(slug)+'/'+(n?encodeURIComponent(n)+'/':'');
+  const html=await viaProxy(url,x=>x.length>2000&&/letterboxd/i.test(x)&&!/Just a moment|cf-browser-verification/i.test(x));
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const structured=reviewFromJsonLd(doc,targetPath);if(structured&&structured.text)return structured;
+  const ogType=(doc.querySelector('meta[property="og:type"]')||{}).content||'';
+  const ogUrl=(doc.querySelector('meta[property="og:url"]')||{}).content||'';
+  let ogPath='';try{ogPath=normalPath(new URL(ogUrl).pathname)}catch(e){}
+  if(ogType!=='letterboxd:review'||ogPath!==targetPath)return null;
+  const body=doc.querySelector('.js-review-body, .review .body-text, .film-detail .body-text');
+  const text=body?cleanReviewHtml(body.innerHTML):cleanText((doc.querySelector('meta[property="og:description"]')||{}).content);
+  const r=doc.querySelector('.rating[class*="rated-"]');
+  const m=r&&String(r.className).match(/rated-(\d+)/);
+  return {text,rating:validRating(m?parseInt(m[1],10)/2:NaN)};
+}
+
+async function fetchReview(){
+  const {user,slug,n,path}=parseLetterboxdUrl($('lb').value.trim());
+  let data=null,src='';
+  try{data=await fromRss(user,slug,n,path);if(data)src='RSS'}catch(e){}
+  if(!data||!data.text||!data.rating){
+    try{const p=await fromPage(user,slug,n,path);
+      if(p){data={text:(data&&data.text)||p.text,rating:(data&&data.rating)||p.rating};src='الصفحة'}}catch(e){}
+  }
+  if(!data)throw new Error('تعذر جلب المراجعة من Letterboxd، الصقها يدوياً أو حط بروكسي خاص. ['+(window.proxyLog||[]).join(' · ')+']');
+  if(data.rating){$('rate').value=String(data.rating)}
+  if(data.text)$('rev').value=data.text;
+  $('who').value=user;
+  draw();
+  if(!data.text)throw new Error('جلبنا التقييم ('+data.rating+'★) لكن ما فيه نص مراجعة، اكتبها يدوياً');
+  return src+(data.rating?' · '+data.rating+'★':' · ما لقينا التقييم، اختره يدوياً');
+}
+$('fetchRev').onclick=async()=>{try{say('جاري جلب المراجعة...');const s=await fetchReview();say('تم جلب المراجعة ✓ ('+s+')')}catch(e){say(e.message)}};
+
+$('fetch').onclick=async()=>{
+  try{
+    say('جاري الجلب...');
+    $('key').onchange();
+    if(!results.length)await search();
+    const d=await api('/movie/'+$('film').value,{append_to_response:'credits'});
+    const dir=(d.credits.crew||[]).filter(c=>c.job==='Director').map(c=>c.name).join(', ');
+    $('title').value=d.title;$('meta').value=[dir,(d.release_date||'').slice(0,4)].filter(Boolean).join(', ');
+    const base='https://image.tmdb.org/t/p/';
+    if(d.poster_path)poster=await loadImg(base+'w780'+d.poster_path,true);
+    if(d.backdrop_path)back=await loadImg(base+'w1280'+d.backdrop_path,true);
+    draw();
+    say('جاري جلب المراجعة والتقييم...');
+    try{const s=await fetchReview();say('تم ✓ مع المراجعة والتقييم ('+s+')')}catch(e){say('تم جلب البوستر ✓ — '+e.message)}
+  }catch(e){say(e.message)}
+};
+
+function cover(c,img,x,y,w,h){const s=Math.max(w/img.width,h/img.height),dw=img.width*s,dh=img.height*s;
+  c.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function blurred(c,img){const k=28,s=document.createElement('canvas');s.width=W/k;s.height=H/k;
+  const x=s.getContext('2d');cover(x,img,0,0,s.width,s.height);c.imageSmoothingQuality='high';c.drawImage(s,0,0,W,H)}
+function wrap(c,t,max,n=3){const w=t.split(/\s+/),L=[];let l='';w.forEach(a=>{const x=l?l+' '+a:a;if(c.measureText(x).width>max&&l){L.push(l);l=a}else l=x});if(l)L.push(l);return L.slice(0,n)}
+
+function drawPoster(c,w,y){if(!poster)return y;const h=w*poster.height/poster.width,x=(W-w)/2;
+  c.save();c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,18);c.fillStyle='#000';c.fill();c.restore();
+  c.save();rr(c,x,y,w,h,18);c.clip();c.drawImage(poster,x,y,w,h);c.restore();
+  c.save();rr(c,x,y,w,h,18);c.lineWidth=5;c.strokeStyle='rgba(255,255,255,.9)';c.stroke();c.restore();return y+h}
+
+function drawPosterRot(c,w,y,deg){if(!poster)return y;const h=w*poster.height/poster.width,x=(W-w)/2,a=deg*Math.PI/180;
+  c.save();c.translate(W/2,y+h/2);c.rotate(a);c.translate(-W/2,-(y+h/2));
+  c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,18);c.fillStyle='#000';c.fill();c.shadowColor='transparent';
+  c.save();rr(c,x,y,w,h,18);c.clip();c.drawImage(poster,x,y,w,h);c.restore();
+  rr(c,x,y,w,h,18);c.lineWidth=5;c.strokeStyle='rgba(255,255,255,.9)';c.stroke();c.restore();
+  return y+h+Math.abs(Math.sin(a))*w/2+10}
+function drawPolaroid(c,w,y){if(!poster)return y;const p=26,iw=w-p*2,ih=iw*poster.height/poster.width,h=ih+p*2+50,x=(W-w)/2;
+  c.save();c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,10);c.fillStyle='#f4f1ea';c.fill();c.restore();
+  c.drawImage(poster,x+p,y+p,iw,ih);return y+h}
+function avgColor(img){if(!img)return '#2a2a2e';try{const s=document.createElement('canvas');s.width=s.height=16;const x=s.getContext('2d');x.drawImage(img,0,0,16,16);
+  const d=x.getImageData(0,0,16,16).data;let r=0,g=0,b=0,n=0;for(let i=0;i<d.length;i+=4){const l=d[i]+d[i+1]+d[i+2];if(l<60||l>700)continue;r+=d[i];g+=d[i+1];b+=d[i+2];n++}
+  return n?'rgb('+Math.round(r/n)+','+Math.round(g/n)+','+Math.round(b/n)+')':'#2a2a2e'}catch(e){return '#2a2a2e'}}
+
+const reviewText=()=>$('showRev').checked?$('rev').value.trim():'';
+
+function drawReview(c,y,maxY,color){
+  const text=reviewText();if(!text)return y;
+  c.textBaseline='top';c.textAlign='center';c.direction=/[\u0600-\u06FF]/.test(text)?'rtl':'ltr';
+  const paras=text.split(/\n+/).filter(Boolean);
+  let size=42,lines=[],lh;
+  for(;size>=24;size-=2){
+    c.font=size+'px system-ui,sans-serif';lh=size*1.42;lines=[];
+    paras.forEach(p=>lines.push(...wrap(c,p,880,99)));
+    if(y+lines.length*lh<=maxY)break;
+  }
+  const fit=Math.max(1,Math.floor((maxY-y)/lh));
+  if(lines.length>fit){lines=lines.slice(0,fit);lines[fit-1]=lines[fit-1].replace(/[\s.,،]*$/,'')+'…'}
+  c.fillStyle=color;c.globalAlpha=.93;
+  lines.forEach((l,i)=>c.fillText(l,W/2,y+i*lh));
+  c.globalAlpha=1;c.direction='ltr';
+  return y+lines.length*lh+30;
+}
+
+function drawText(c,y,starsFirst,hasRev){
+  const tc=$('tc').value,sc=$('sc').value,r=parseFloat($('rate').value);
+  const ts=hasRev?64:78,ss=hasRev?84:104;
+  c.textAlign='center';c.textBaseline='top';
+  const stars=()=>{c.font='bold '+ss+'px system-ui,sans-serif';c.fillStyle=sc;
+    c.fillText('★'.repeat(Math.floor(r))+(r%1?'½':''),W/2,y);y+=ss*1.35};
+  const title=()=>{c.font='bold '+ts+'px system-ui,sans-serif';c.fillStyle=tc;
+    wrap(c,$('title').value||'اسم الفيلم',900).forEach(l=>{c.fillText(l,W/2,y);y+=ts*1.22});y+=6;
+    c.font=(hasRev?32:38)+'px system-ui,sans-serif';c.globalAlpha=.9;c.fillText($('meta').value,W/2,y);c.globalAlpha=1;y+=hasRev?56:70};
+  const who=yy=>{if(!$('showWho').checked||!$('who').value)return;
+    const a='Reviewed by ',b=$('who').value;c.font='28px system-ui,sans-serif';const wa=c.measureText(a).width;
+    c.font='bold 28px system-ui,sans-serif';const wb=c.measureText(b).width,x=(W-wa-wb)/2;
+    c.textAlign='left';c.fillStyle=tc;c.globalAlpha=.85;c.font='28px system-ui,sans-serif';c.fillText(a,x,yy);
+    c.font='bold 28px system-ui,sans-serif';c.fillText(b,x+wa,yy);c.globalAlpha=1;c.textAlign='center'};
+  if(starsFirst){stars();title()}else{title();stars()}
+  if(hasRev){y=drawReview(c,y,H-150,tc);who(H-110)}else who(y);
+}
+
+function draw(){clearTimeout(draw.t);draw.t=setTimeout(render,60)}
+function render(){
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');
+  const hr=!!reviewText();
+  c.fillStyle='#0b0b0c';c.fillRect(0,0,W,H);
+  const bg=back||poster;
+  const solid=style==='banner'||style==='cinema';
+  if(style==='color'){const gg=c.createLinearGradient(0,0,0,H);gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,'#0b0b0c');c.fillStyle=gg;c.fillRect(0,0,W,H)}
+  else if(bg&&!solid){if(style==='blur'||style==='glass')blurred(c,poster||bg);else if(style==='fullposter')cover(c,poster||bg,0,0,W,H);else cover(c,bg,0,0,W,H)}
+  c.fillStyle='rgba(0,0,0,'+($('dark').value/100)+')';c.fillRect(0,0,W,H);
+  const g=c.createLinearGradient(0,H*.4,0,H);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.92)');c.fillStyle=g;c.fillRect(0,H*.4,W,H*.6);
+  if(style==='medium'){const e=hr?drawPoster(c,330,150):drawPoster(c,430,330);drawText(c,e+(hr?50:90),false,hr)}
+  else if(style==='big'){const e=hr?drawPoster(c,520,120):drawPoster(c,820,150);drawText(c,e+(hr?50:70),false,hr)}
+  else if(style==='small'){const e=hr?drawPoster(c,240,140):drawPoster(c,300,420);drawText(c,e+(hr?50:100),false,hr)}
+  else if(style==='blur'){const e=hr?drawPoster(c,380,150):drawPoster(c,560,260);drawText(c,e+(hr?50:90),false,hr)}
+  else if(style==='starsfirst')drawText(c,hr?200:720,true,hr);
+  else if(style==='tilt'){const e=hr?drawPosterRot(c,330,190,-5):drawPosterRot(c,470,330,-5);drawText(c,e+(hr?50:90),false,hr)}
+  else if(style==='polaroid'){const e=hr?drawPolaroid(c,380,140):drawPolaroid(c,560,240);drawText(c,e+(hr?50:80),false,hr)}
+  else if(style==='banner'){const bh=780,bi=back||poster;
+    if(bi){c.save();c.beginPath();c.rect(0,0,W,bh);c.clip();cover(c,bi,0,0,W,bh);c.fillStyle='rgba(0,0,0,'+($('dark').value/100*.6)+')';c.fillRect(0,0,W,bh);c.restore()}
+    const fg=c.createLinearGradient(0,bh-320,0,bh);fg.addColorStop(0,'rgba(11,11,12,0)');fg.addColorStop(1,'rgba(11,11,12,1)');c.fillStyle=fg;c.fillRect(0,bh-320,W,320);
+    const e=hr?drawPoster(c,300,470):drawPoster(c,400,500);drawText(c,e+(hr?50:80),false,hr)}
+  else if(style==='cinema'){const by=hr?120:340,bh=hr?560:607,bi=back||poster;
+    if(bi){c.save();c.beginPath();c.rect(0,by,W,bh);c.clip();cover(c,bi,0,by,W,bh);c.fillStyle='rgba(0,0,0,'+($('dark').value/100*.5)+')';c.fillRect(0,by,W,bh);c.restore()}
+    c.fillStyle='rgba(255,255,255,.85)';c.fillRect(0,by-6,W,3);c.fillRect(0,by+bh+3,W,3);
+    drawText(c,by+bh+70,false,hr)}
+  else if(style==='glass'){const py=hr?90:240,ph=hr?H-180:1420;
+    c.save();rr(c,60,py,W-120,ph,40);c.fillStyle='rgba(255,255,255,.10)';c.fill();c.lineWidth=3;c.strokeStyle='rgba(255,255,255,.28)';c.stroke();c.restore();
+    const e=hr?drawPoster(c,300,py+60):drawPoster(c,440,py+70);drawText(c,e+(hr?50:80),false,hr)}
+  else if(style==='color'){const e=hr?drawPoster(c,330,150):drawPoster(c,520,260);drawText(c,e+(hr?50:90),false,hr)}
+  else if(style==='fullposter')drawText(c,hr?900:1300,false,hr);
+  else drawText(c,hr?200:760,false,hr);
+  $('out').src=cv.toDataURL('image/jpeg',.93);
+}
+$('dl').onclick=()=>{const a=document.createElement('a');a.href=$('out').src;a.download='review-card.jpg';a.click()};
+render();
+</script>
+</body>
+</html>

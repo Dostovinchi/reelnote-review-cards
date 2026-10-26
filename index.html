@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#12120f"><title>Reelnote — review cards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="#top" aria-label="Reelnote home"><span class="mark">R</span> reelnote</a><div class="top-actions"><button class="text-button" id="signOut" hidden>Sign out</button><button class="avatar" id="openAuth" aria-label="Sign in">↗</button></div></header>
+  <main id="top">
+    <section class="intro" aria-labelledby="headline"><p class="eyebrow">YOUR TASTE, EDITED</p><h1 id="headline">Turn a good<br><em>review</em> into a card.</h1><p class="lede">Connect your watch history, choose a recent thought, and make it worth sharing.</p><div class="hero-actions"><button class="primary" id="start">Connect an account <span>→</span></button><a class="secondary" href="card-maker.html">Use a link instead</a></div></section>
+
+    <section class="workspace" aria-label="Review studio">
+      <div class="section-heading"><div><p class="eyebrow">01 / SOURCES</p><h2>Your accounts</h2></div><span class="secure">● private by design</span></div>
+      <div class="sources">
+        <article class="source-card letterboxd"><div class="source-top"><span class="source-icon">●●●</span><span class="source-state" id="lbState">Not connected</span></div><h3>Letterboxd</h3><p>Bring in your latest film reviews and ratings.</p><button class="outline connect" data-source="letterboxd">Connect Letterboxd <span>→</span></button></article>
+        <article class="source-card serializd"><div class="source-top"><span class="source-icon serial-icon">S</span><span class="source-state" id="szState">Not connected</span></div><h3>Serializd</h3><p>Add public TV review links to your workspace.</p><button class="outline connect" data-source="serializd">Add Serializd profile <span>→</span></button></article>
+        <article class="source-card manual"><div class="source-top"><span class="source-icon">↗</span><span class="source-state">Always ready</span></div><h3>Paste a link</h3><p>Make a card from any public Letterboxd review.</p><a class="outline" href="card-maker.html">Open card maker <span>→</span></a></article>
+      </div>
+    </section>
+
+    <section class="reviews" id="reviewSection" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">02 / PICK A THOUGHT</p><h2>Latest reviews</h2></div><button class="text-button" id="refresh" hidden>Refresh</button></div>
+      <div class="empty" id="emptyState"><span class="empty-glyph">✦</span><h3>Your newest reviews will appear here.</h3><p>Connect Letterboxd or add a public profile to start.</p><button class="primary small" id="emptyConnect">Add a profile <span>→</span></button></div>
+      <div class="review-grid" id="reviewGrid" hidden></div>
+    </section>
+
+    <section class="how"><p class="eyebrow">THE FLOW</p><div><span>01</span><p>Connect only what you want to share.</p></div><div><span>02</span><p>Choose a review from your latest activity.</p></div><div><span>03</span><p>Style it, save it, send it.</p></div></section>
+  </main>
+  <footer><span>REELNOTE</span><span>FILM &amp; TV, WELL SAID</span><a href="card-maker.html">Classic card maker →</a></footer>
+
+  <dialog id="authDialog"><form method="dialog" class="dialog-card"><button class="close" value="cancel" aria-label="Close">×</button><p class="eyebrow">WELCOME IN</p><h2>Save your sources.</h2><p class="dialog-copy">Sign in by email to keep your connected profiles across devices.</p><label>Email address<input type="email" id="email" placeholder="you@example.com" autocomplete="email" required></label><button class="primary" id="emailSignIn" value="default">Send sign-in link <span>→</span></button><p class="fine-print" id="authNote">Email sign-in is enabled after adding your Supabase project details in <code>app.js</code>.</p></form></dialog>
+  <dialog id="profileDialog"><form method="dialog" class="dialog-card"><button class="close" value="cancel" aria-label="Close">×</button><p class="eyebrow" id="profileEyebrow">CONNECT</p><h2 id="profileTitle">Add your profile</h2><p class="dialog-copy" id="profileCopy"></p><label id="profileLabel">Username<input id="profileHandle" autocomplete="username" placeholder="your-username" required></label><button class="primary" id="saveProfile" value="default">Show latest reviews <span>→</span></button><p class="fine-print" id="profileNote"></p></form></dialog>
+  <script src="app.js"></script>
+</body></html>
