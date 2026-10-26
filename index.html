@@ -79,8 +79,13 @@
           <div class="input-action"><input id="tmdbKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your TMDB API key"><button id="tmdbSaveKey" class="button quiet" type="button">Save locally</button></div>
           <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" class="profile-link">Get your TMDB API key ↗</a>
         </details>
-        <p id="tmdbStatus" class="connection-status" role="status" aria-live="polite">Add your TMDB key once, then search for posters. Manual uploads still work without a key.</p>
+        <p id="tmdbStatus" class="connection-status" role="status" aria-live="polite">Save your TMDB key once. When you choose a review below, Framix will find the title and load its poster options automatically.</p>
         <div id="tmdbResults" class="tmdb-results" aria-live="polite"></div>
+        <div id="tmdbPosterOptionsWrap" class="tmdb-poster-options-wrap" hidden>
+          <div class="tmdb-options-heading"><span>POSTER OPTIONS</span><small id="tmdbPosterCount"></small></div>
+          <p class="tmdb-help">Choose any poster artwork TMDB has for this title.</p>
+          <div id="tmdbPosters" class="tmdb-posters" aria-live="polite"></div>
+        </div>
       </div>
       <div class="editor-divider"></div>
       <div class="panel-heading"><span class="step-number">C</span><div><h3>Poster theme</h3><p>Choose which style collection to use.</p></div></div>
@@ -96,10 +101,10 @@
       </div>
       <label class="check"><input id="showRating" type="checkbox" checked> Show my rating</label>
       <label class="check"><input id="showReview" type="checkbox" checked> Show my review text</label>
-      <button class="button primary download" id="downloadCard" type="button">Download poster · PNG ↓</button>
+      <button class="button primary download" id="downloadCard" type="button">Download Instagram Story · PNG ↓</button>
       <p class="privacy-note">Your image and text stay in your browser. No upload or subscription required.</p>
     </form>
-    <aside class="preview"><div class="preview-top"><span><i></i> LIVE PREVIEW</span><span>1080 × 1350 PX</span></div><div class="canvas-wrap"><canvas id="cardCanvas" width="1080" height="1350" aria-label="Live cinematic poster preview"></canvas></div><div class="preview-bottom"><span><b>FRAMIX STUDIO</b><small>Your taste, in a frame.</small></span><span id="previewStatus" role="status">READY TO FRAME ↗</span></div></aside>
+    <aside class="preview"><div class="preview-top"><span><i></i> LIVE PREVIEW</span><span>INSTAGRAM STORY · 1080 × 1920</span></div><div class="canvas-wrap story-preview"><canvas id="cardCanvas" width="1080" height="1920" aria-label="Instagram Story poster preview, 1080 by 1920 pixels"></canvas></div><div class="preview-bottom"><span><b>FRAMIX STUDIO</b><small>Your taste, in a frame.</small></span><span id="previewStatus" role="status">READY TO FRAME ↗</span></div></aside>
   </div>
 </section></main>
 <footer class="site-footer">
