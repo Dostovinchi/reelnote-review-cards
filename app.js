@@ -641,11 +641,11 @@ async function fetchSerializdDiary(username){
     "https://www.serializd.onrender.com/api/user/"+user+"/diary?page=1",
     "https://serializd.onrender.com/api/user/"+user+"/diary?page=1"
   ];
-  let lastError=null;
+  let lastError=null,authRejected=false;
   for(const endpoint of endpoints){
     try{
       const body=await relay(endpoint,text=>{
-        try{return Array.isArray(serializdRows(JSON.parse(text)))}catch{return false}
+        try{return Array.isArray(serializdRows(JSON.parse(text)))}catch(error){if(/401|unauthori[sz]ed|authentication required|token required/i.test(String(error?.message||error)))authRejected=true;return false}
       });
       const rows=serializdRows(JSON.parse(body));
       if(!Array.isArray(rows))throw Error("Serializd returned an unsupported diary response.");
@@ -655,7 +655,7 @@ async function fetchSerializdDiary(username){
       console.warn("Serializd endpoint failed",endpoint,error);
     }
   }
-  if(lastError&&/401|unauthori[sz]ed|Unexpected response from relay/i.test(String(lastError.message||lastError))){
+  if(authRejected||(lastError&&/401|unauthori[sz]ed/i.test(String(lastError.message||lastError)))){
     throw Error("Public diary requests were rejected (HTTP 401). Serializd's current API may require a session.");
   }
   throw Error("Could not reach a public Serializd diary endpoint. "+(lastError?.message||"No endpoint returned usable diary data."));
