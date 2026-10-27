@@ -8,6 +8,47 @@ function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.re
 
 /* ---------- Card engine state (ReelNote review-card maker) ---------- */
 const CARD_STYLES=[["medium","Poster centre"],["big","Large poster"],["small","Small poster"],["blur","Blurred backdrop"],["starsfirst","Stars first"],["text","Text only"],["tilt","Tilted poster"],["polaroid","Polaroid"],["banner","Top banner"],["cinema","Cinema strip"],["glass","Glass panel"],["color","Colour wash"],["fullposter","Full poster"]];
+
+const THEME_PALETTES={
+  general:{
+    noir:{label:"Noir",swatch:"#26241f",canvas:"#0b0b0c",accent:"#c4a36a",ink:"#f4f0e7"},
+    midnight:{label:"Midnight",swatch:"#172c4c",canvas:"#07101c",accent:"#8cb8ff",ink:"#eff5ff"},
+    ember:{label:"Ember",swatch:"#5a2e1e",canvas:"#180c0a",accent:"#ff9d67",ink:"#fff0e7"},
+    archive:{label:"Archive",swatch:"#85785b",canvas:"#171914",accent:"#d4c5a1",ink:"#f3ead7"}
+  },
+  letterboxd:{
+    noir:{label:"Green",swatch:"#1d5738",canvas:"#081a11",accent:"#7cdda1",ink:"#e7fff0"},
+    midnight:{label:"Red",swatch:"#682637",canvas:"#1a080b",accent:"#ff8198",ink:"#fff0f2"},
+    ember:{label:"Blue",swatch:"#244c76",canvas:"#091323",accent:"#91c6ff",ink:"#f0f7ff"},
+    archive:{label:"Gold",swatch:"#6d5721",canvas:"#1b1507",accent:"#e8c86f",ink:"#fff9e6"}
+  },
+  serializd:{
+    noir:{label:"Violet",swatch:"#5d3b86",canvas:"#150c22",accent:"#c7a2ff",ink:"#fbf4ff"},
+    midnight:{label:"Pink",swatch:"#8d345d",canvas:"#210c18",accent:"#ff9dce",ink:"#fff3fa"},
+    ember:{label:"Cyan",swatch:"#1b6570",canvas:"#06191c",accent:"#77e9f1",ink:"#eaffff"},
+    archive:{label:"Lime",swatch:"#466823",canvas:"#121a07",accent:"#c0ef73",ink:"#f7ffe8"}
+  }
+};
+function activePalette(){
+  const family=$("#themeFamily")?.value||"general";
+  const key=$('input[name="theme"]:checked')?.value||"noir";
+  return THEME_PALETTES[family]?.[key]||THEME_PALETTES.general.noir;
+}
+function syncThemeOptions(repaint=true){
+  const family=$("#themeFamily")?.value||"general";
+  const choices=THEME_PALETTES[family]||THEME_PALETTES.general;
+  $('input[name="theme"]').forEach(input=>{
+    const palette=choices[input.value];if(!palette)return;
+    const label=input.closest("label");
+    const swatch=label?.querySelector(".swatch"),name=label?.querySelector("b");
+    if(swatch){swatch.style.background=palette.swatch;swatch.style.borderColor=palette.accent}
+    if(name)name.textContent=palette.label;
+    input.style.accentColor=palette.accent;
+  });
+  document.documentElement.style.setProperty("--accent",activePalette().accent);
+  if(repaint&&typeof paint==="function")paint();
+}
+
 let cardStyle="medium",poster=null,back=null,posterObjectUrl=null,backObjectUrl=null;
 
 /* ---------- TMDB ---------- */
@@ -446,7 +487,7 @@ function drawReview(c,y,maxY,color){
   return y+lines.length*lh+30;
 }
 function drawText(c,y,starsFirst,hasRev){
-  const tc=$("#textColor")?.value||"#f5f1e8",sc=$("#starColor")?.value||"#d7b46a",r=parseFloat($("#rating").value)||0;
+  const palette=activePalette(),tc=palette.ink,sc=palette.accent,r=parseFloat($("#rating").value)||0;
   const ts=hasRev?64:78,ss=hasRev?84:104;
   c.textAlign="center";c.textBaseline="top";
   const stars=()=>{c.font="bold "+ss+"px system-ui,sans-serif";c.fillStyle=sc;
@@ -463,35 +504,51 @@ function drawText(c,y,starsFirst,hasRev){
   if(hasRev){y=drawReview(c,y,H-150,tc);who(H-110)}else who(y);
 }
 function paint(){
-  ctx.fillStyle="#0b0b0c";ctx.fillRect(0,0,W,H);
+  const palette=activePalette();
+  const layout=$("#posterLayout")?.value||"review";
+  const style=layout==="poster"?"fullposter":layout==="editorial"?"text":cardStyle;
+  ctx.fillStyle=palette.canvas;ctx.fillRect(0,0,W,H);
   const hr=!!reviewText();
   const bg=back||poster;
-  const solid=cardStyle==="banner"||cardStyle==="cinema";
-  if(cardStyle==="color"){const gg=ctx.createLinearGradient(0,0,0,H);gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,"#0b0b0c");ctx.fillStyle=gg;ctx.fillRect(0,0,W,H)}
-  else if(bg&&!solid){if(cardStyle==="blur"||cardStyle==="glass")blurred(ctx,poster||bg);else if(cardStyle==="fullposter")cover(ctx,poster||bg,0,0,W,H);else cover(ctx,bg,0,0,W,H)}
-  ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100)+")";ctx.fillRect(0,0,W,H);
-  const g=ctx.createLinearGradient(0,H*.4,0,H);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.92)");ctx.fillStyle=g;ctx.fillRect(0,H*.4,W,H*.6);
+  const solid=style==="banner"||style==="cinema";
+  if(style==="color"){
+    const gg=ctx.createLinearGradient(0,0,0,H);
+    gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,palette.canvas);
+    ctx.fillStyle=gg;ctx.fillRect(0,0,W,H);
+  }else if(bg&&!solid&&style!=="text"){
+    if(style==="blur"||style==="glass")blurred(ctx,poster||bg);
+    else if(style==="fullposter")cover(ctx,poster||bg,0,0,W,H);
+    else cover(ctx,bg,0,0,W,H);
+  }
+  ctx.fillStyle="rgba(0,0,0,"+darkenAmount()/100+")";ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,H*.4,0,H);
+  g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.92)");
+  ctx.fillStyle=g;ctx.fillRect(0,H*.4,W,H*.6);
   let e;
-  if(cardStyle==="medium"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,430,330);drawText(ctx,e+(hr?50:90),false,hr)}
-  else if(cardStyle==="big"){e=hr?drawPoster(ctx,520,120):drawPoster(ctx,820,150);drawText(ctx,e+(hr?50:70),false,hr)}
-  else if(cardStyle==="small"){e=hr?drawPoster(ctx,240,140):drawPoster(ctx,300,420);drawText(ctx,e+(hr?50:100),false,hr)}
-  else if(cardStyle==="blur"){e=hr?drawPoster(ctx,380,150):drawPoster(ctx,560,260);drawText(ctx,e+(hr?50:90),false,hr)}
-  else if(cardStyle==="starsfirst")drawText(ctx,hr?200:720,true,hr);
-  else if(cardStyle==="tilt"){e=hr?drawPosterRot(ctx,330,190,-5):drawPosterRot(ctx,470,330,-5);drawText(ctx,e+(hr?50:90),false,hr)}
-  else if(cardStyle==="polaroid"){e=hr?drawPolaroid(ctx,380,140):drawPolaroid(ctx,560,240);drawText(ctx,e+(hr?50:80),false,hr)}
-  else if(cardStyle==="banner"){const bh=780,bi=back||poster;
-    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,0,W,bh);ctx.clip();cover(ctx,bi,0,0,W,bh);ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100*.6)+")";ctx.fillRect(0,0,W,bh);ctx.restore()}
-    const fg=ctx.createLinearGradient(0,bh-320,0,bh);fg.addColorStop(0,"rgba(11,11,12,0)");fg.addColorStop(1,"rgba(11,11,12,1)");ctx.fillStyle=fg;ctx.fillRect(0,bh-320,W,320);
-    e=hr?drawPoster(ctx,300,470):drawPoster(ctx,400,500);drawText(ctx,e+(hr?50:80),false,hr)}
-  else if(cardStyle==="cinema"){const by=hr?120:340,bh2=hr?560:607,bi=back||poster;
-    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,by,W,bh2);ctx.clip();cover(ctx,bi,0,by,W,bh2);ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100*.5)+")";ctx.fillRect(0,by,W,bh2);ctx.restore()}
-    ctx.fillStyle="rgba(255,255,255,.85)";ctx.fillRect(0,by-6,W,3);ctx.fillRect(0,by+bh2+3,W,3);
-    drawText(ctx,by+bh2+70,false,hr)}
-  else if(cardStyle==="glass"){const py=hr?90:240,ph=hr?H-180:1420;
-    ctx.save();rr(ctx,60,py,W-120,ph,40);ctx.fillStyle="rgba(255,255,255,.10)";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="rgba(255,255,255,.28)";ctx.stroke();ctx.restore();
-    e=hr?drawPoster(ctx,300,py+60):drawPoster(ctx,440,py+70);drawText(ctx,e+(hr?50:80),false,hr)}
-  else if(cardStyle==="color"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,520,260);drawText(ctx,e+(hr?50:90),false,hr)}
-  else if(cardStyle==="fullposter")drawText(ctx,hr?900:1300,false,hr);
+  if(style==="medium"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,430,330);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(style==="big"){e=hr?drawPoster(ctx,520,120):drawPoster(ctx,820,150);drawText(ctx,e+(hr?50:70),false,hr)}
+  else if(style==="small"){e=hr?drawPoster(ctx,240,140):drawPoster(ctx,300,420);drawText(ctx,e+(hr?50:100),false,hr)}
+  else if(style==="blur"){e=hr?drawPoster(ctx,380,150):drawPoster(ctx,560,260);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(style==="starsfirst")drawText(ctx,hr?200:720,true,hr);
+  else if(style==="tilt"){e=hr?drawPosterRot(ctx,330,190,-5):drawPosterRot(ctx,470,330,-5);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(style==="polaroid"){e=hr?drawPolaroid(ctx,380,140):drawPolaroid(ctx,560,240);drawText(ctx,e+(hr?50:80),false,hr)}
+  else if(style==="banner"){
+    const bh=780,bi=back||poster;
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,0,W,bh);ctx.clip();cover(ctx,bi,0,0,W,bh);ctx.fillStyle="rgba(0,0,0,"+darkenAmount()/100*.6+")";ctx.fillRect(0,0,W,bh);ctx.restore()}
+    const fg=ctx.createLinearGradient(0,bh-320,0,bh);fg.addColorStop(0,"rgba(11,11,12,0)");fg.addColorStop(1,palette.canvas);
+    ctx.fillStyle=fg;ctx.fillRect(0,bh-320,W,320);
+    e=hr?drawPoster(ctx,300,470):drawPoster(ctx,400,500);drawText(ctx,e+(hr?50:80),false,hr);
+  }else if(style==="cinema"){
+    const by=hr?120:340,bh2=hr?560:607,bi=back||poster;
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,by,W,bh2);ctx.clip();cover(ctx,bi,0,by,W,bh2);ctx.fillStyle="rgba(0,0,0,"+darkenAmount()/100*.5+")";ctx.fillRect(0,by,W,bh2);ctx.restore()}
+    ctx.fillStyle=palette.accent+"d9";ctx.fillRect(0,by-6,W,3);ctx.fillRect(0,by+bh2+3,W,3);
+    drawText(ctx,by+bh2+70,false,hr);
+  }else if(style==="glass"){
+    const py=hr?90:240,ph=hr?H-180:1420;
+    ctx.save();rr(ctx,60,py,W-120,ph,40);ctx.fillStyle=palette.accent+"1c";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle=palette.accent+"65";ctx.stroke();ctx.restore();
+    e=hr?drawPoster(ctx,300,py+60):drawPoster(ctx,440,py+70);drawText(ctx,e+(hr?50:80),false,hr);
+  }else if(style==="color"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,520,260);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(style==="fullposter")drawText(ctx,hr?900:1300,false,hr);
   else drawText(ctx,hr?200:760,false,hr);
   $("#previewStatus").textContent=poster?"ARTWORK LOADED ✓":"READY TO FRAME ↗";
 }
@@ -517,7 +574,7 @@ function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!ro
 async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading public reviews…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent reviews for @"+username+".":"No written reviews found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed: "+(err?.message||"public relay unavailable")+". Check the username and retry.","error");console.warn("Letterboxd import failed",err)}finally{button.disabled=false}}
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
 function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No public diary entries were returned. The profile link is saved; this unofficial endpoint may require a session. You can still create posters manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
-async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1",x=>{try{const d=JSON.parse(x);return Array.isArray(d)||!!(d&&typeof d==="object")}catch{return false}}),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);status("#serializdStatus","Could not load the diary: "+(err?.message||"public relay unavailable")+". The profile link is still available; no password was collected.","error");console.warn("Serializd import failed",err)}finally{button.disabled=false}}
+async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1",x=>{try{const d=JSON.parse(x);return Array.isArray(d)||!!(d&&typeof d==="object")}catch{return false}}),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);const reason=String(err?.message||"");const message=/\\b401\\b/.test(reason)?"Serializd is rejecting unauthenticated diary requests (HTTP 401). This importer does not ask for your password, so only the public profile link is available for now.":"Could not load the diary: "+(reason||"public relay unavailable")+". The profile link is still available; no password was collected.";status("#serializdStatus",message,"error");console.warn("Serializd import failed",err)}finally{button.disabled=false}}
 async function fetchImage(url){
   let lastError=null;
   const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
@@ -550,6 +607,9 @@ $("#tmdbSaveKey").addEventListener("click",()=>{
  void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);
+ $("#themeFamily").addEventListener("change",()=>syncThemeOptions());
+ $('input[name="theme"]').forEach(input=>input.addEventListener("change",()=>syncThemeOptions()));
+ $("#posterLayout").addEventListener("change",()=>paint());
 $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 ["#filmTitle","#filmYear","#rating","#reviewerName","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
   const el=$(sel);if(!el)return;
@@ -616,6 +676,7 @@ window.FramixStudio={
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
 const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField)proxyField.value=savedProxy;
 buildStyleChips();
+syncThemeOptions(false);
 const lb=safeStore.get("framix.lb"),sz=safeStore.get("framix.sz");if(lb)$("#lbUsername").value=lb;if(sz){$("#serializdUsername").value=sz;$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(sz);$("#serializdProfileLink").textContent="Open @"+sz+" on Serializd ↗";$("#serializdProfileLink").hidden=false}
 paint();configureAuth();
 })();
