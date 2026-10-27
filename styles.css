@@ -198,3 +198,10 @@ footer>a:last-child{font-size:10px;color:var(--muted)}
 .story-preview canvas{aspect-ratio:9/16;width:100%;height:auto;display:block}
 .preview-top span:last-child{white-space:nowrap}
 @media(max-width:720px){.story-preview{max-width:340px}.tmdb-posters{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:7px;max-height:390px}}
+/* Keep the TMDB picker compact: its viewport clips the horizontal track. */
+#tmdbPosters.poster-carousel{display:block;max-height:none;overflow:visible;padding:0;margin-top:9px}
+#tmdbPosters.poster-carousel .poster-carousel-viewport{width:100%;height:224px;overflow:hidden}
+#tmdbPosters.poster-carousel .poster-carousel-track{display:flex;width:100%;height:100%}
+#tmdbPosters.poster-carousel .poster-slide{flex:0 0 100%;width:100%;min-width:100%;height:100%;box-sizing:border-box}
+#tmdbPosters.poster-carousel .poster-carousel-nav{position:absolute}
+@media(max-width:720px){#tmdbPosters.poster-carousel .poster-carousel-viewport{height:190px}}
