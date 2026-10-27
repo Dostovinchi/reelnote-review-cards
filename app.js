@@ -2,43 +2,21 @@
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const canvas=$("#cardCanvas"),ctx=canvas.getContext("2d"),W=canvas.width,H=canvas.height;
-const themes={
- noir:{bg:"#090e16",ink:"#f3f0e8",muted:"#b3bdca",accent:"#d2ae70",overlay:"rgba(5,9,16,.64)"},
- midnight:{bg:"#0b1a2c",ink:"#eef4f7",muted:"#a8c2d2",accent:"#64b2c5",overlay:"rgba(4,17,31,.58)"},
- ember:{bg:"#21141b",ink:"#f4e8e2",muted:"#cbb4b2",accent:"#d2ae70",overlay:"rgba(23,7,13,.64)"},
- archive:{bg:"#e4d9c8",ink:"#252932",muted:"#5d626a",accent:"#8c423f",overlay:"rgba(20,23,31,.48)"}
-};
-const themeFamilies={
- general:{label:"Framix · General",themes:{
- noir:{bg:"#090e16",ink:"#f3f0e8",muted:"#b3bdca",accent:"#d2ae70",overlay:"rgba(5,9,16,.64)"},
- midnight:{bg:"#0b1a2c",ink:"#eef4f7",muted:"#a8c2d2",accent:"#64b2c5",overlay:"rgba(4,17,31,.58)"},
- ember:{bg:"#21141b",ink:"#f4e8e2",muted:"#cbb4b2",accent:"#d2ae70",overlay:"rgba(23,7,13,.64)"},
- archive:{bg:"#e4d9c8",ink:"#252932",muted:"#5d626a",accent:"#8c423f",overlay:"rgba(20,23,31,.48)"}
- }},
- letterboxd:{label:"Letterboxd",themes:{
- lb_green:{bg:"#071c11",ink:"#f3f5ed",muted:"#b5c5b8",accent:"#00e054",overlay:"rgba(0,20,10,.68)"},
- lb_red:{bg:"#2b1018",ink:"#fff0ed",muted:"#d5b4b7",accent:"#ff667a",overlay:"rgba(25,3,10,.68)"},
- lb_blue:{bg:"#0d1d33",ink:"#f0f5ff",muted:"#b5c7e1",accent:"#70a9ff",overlay:"rgba(5,12,29,.7)"},
- lb_gold:{bg:"#231c10",ink:"#fff7df",muted:"#d3c7a5",accent:"#f1c75b",overlay:"rgba(23,16,5,.7)"}
- }},
- serializd:{label:"Serializd",themes:{
- sz_violet:{bg:"#151024",ink:"#f6f0ff",muted:"#c0b5d9",accent:"#b59aff",overlay:"rgba(18,8,36,.7)"},
- sz_pink:{bg:"#28111f",ink:"#fff0f6",muted:"#d8b6c9",accent:"#ff8bc3",overlay:"rgba(35,5,25,.7)"},
- sz_cyan:{bg:"#071e27",ink:"#eaffff",muted:"#b0d3d8",accent:"#59dce5",overlay:"rgba(0,18,26,.7)"},
- sz_lime:{bg:"#18200c",ink:"#f5ffe9",muted:"#c6d5ad",accent:"#b4e56e",overlay:"rgba(13,22,5,.7)"}
- }}
-};
-const samples=[
-{name:"In the Mood for Love",url:"https://images.squarespace-cdn.com/content/v1/55e06149e4b0e924d81546a2/1617825549939-LAKNACAXYPYGDT0BHAMV/Movie-still-Maggie-Cheung-Tony-Leung-Fayeung-ninwa-In-the-Mood-For-Love-2000.jpeg?format=1000w"},
-{name:"Blade Runner 2049",url:"https://images.everyeye.it/img-screenshot/blade-runner-2049-v1-524761.jpg"},
-{name:"Chungking Express",url:"https://m.media-amazon.com/images/M/MV5BOGE2OWU5NzQtNTI2Ni00YmJmLWIzM2QtNzA1MTY3ZTRiNDdkXkEyXkFqcGc%40._V1_.jpg"}
-];
-let tmdbResults=[], selectedTMDB=null, tmdbPosterVariants=[], tmdbLoadSequence=0, activePosterPath="";
+const safeStore={get(k){try{return localStorage.getItem(k)||""}catch{return""}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+const val=s=>$(s).value.trim();
+function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
+
+/* ---------- Card engine state (ReelNote review-card maker) ---------- */
+const CARD_STYLES=[["medium","Poster centre"],["big","Large poster"],["small","Small poster"],["blur","Blurred backdrop"],["starsfirst","Stars first"],["text","Text only"],["tilt","Tilted poster"],["polaroid","Polaroid"],["banner","Top banner"],["cinema","Cinema strip"],["glass","Glass panel"],["color","Colour wash"],["fullposter","Full poster"]];
+let cardStyle="medium",poster=null,back=null,posterObjectUrl=null,backObjectUrl=null;
+
+/* ---------- TMDB ---------- */
+let tmdbResults=[],selectedTMDB=null,tmdbPosterVariants=[],tmdbLoadSequence=0,activePosterPath="",lbMatches=[],lbLinkSearched="";
 function setTMDBStatus(msg,type=""){status("#tmdbStatus",msg,type)}
 function tmdbKey(){return safeStore.get("framix.tmdbKey")||""}
 async function tmdb(path,params={}){
   const key=tmdbKey();
-  if(!key)throw Error("Save your TMDB v3 API key first. You can still upload a poster manually.");
+  if(!key)throw Error("Save your TMDB v3 API key first (step B below).");
   const u=new URL("https://api.themoviedb.org/3"+path);
   u.searchParams.set("api_key",key);
   Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")u.searchParams.set(k,v)});
@@ -96,7 +74,7 @@ async function searchTMDB(){
     tmdbResults=[...(movies.results||[]).map(item=>tmdbResult(item,"movie")),...(tv.results||[]).map(item=>tmdbResult(item,"tv"))]
       .sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,20);
     renderTMDBResults();
-    setTMDBStatus(tmdbResults.length?"Found "+tmdbResults.length+" titles. Choose one, then browse all its TMDB posters.":"No results found. Try the original title or another spelling.",tmdbResults.length?"success":"");
+    setTMDBStatus(tmdbResults.length?"Found "+tmdbResults.length+" titles. Choose one, then swipe through its TMDB posters.":"No results found. Try the original title or another spelling.",tmdbResults.length?"success":"");
   }catch(error){setTMDBStatus(error.message||"Could not reach TMDB. Try again later.","error")}
   finally{button.disabled=false}
 }
@@ -108,38 +86,99 @@ function renderTMDBResults(){
     const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small"),button=document.createElement("button");
     title.textContent=item.display_title||"Untitled";
     meta.textContent=(item.media_type==="tv"?"TV SERIES":"MOVIE")+" · "+(item.display_date||"Release date unknown").slice(0,4);
-    button.type="button";button.textContent="Choose title";button.addEventListener("click",()=>selectTMDB(item));
+    button.type="button";button.textContent="Choose title";button.addEventListener("click",()=>loadTMDBTitle(item));
     info.append(title,meta,button);card.append(img,info);grid.append(card);
   });
 }
+
+/* ---------- Swipeable TMDB poster options ---------- */
+let carouselIndex=0,dragMoved=false;
+function posterVariantLabel(v){return ((v.iso_639_1||"no text").toUpperCase())+" · "+(v.vote_average?Number(v.vote_average).toFixed(1)+"★":"TMDB")}
 function renderTMDBPosterOptions(){
-  const wrap=$("#tmdbPosterOptionsWrap"),grid=$("#tmdbPosters");
-  grid.replaceChildren();
+  const wrap=$("#tmdbPosterOptionsWrap"),root=$("#tmdbPosters");
+  root.replaceChildren();
   if(!selectedTMDB||!tmdbPosterVariants.length){wrap.hidden=true;$("#tmdbPosterCount").textContent="";return}
   wrap.hidden=false;
-  $("#tmdbPosterCount").textContent=tmdbPosterVariants.length+" option"+(tmdbPosterVariants.length===1?"":"s");
-  tmdbPosterVariants.forEach((posterItem,index)=>{
-    const button=document.createElement("button");button.type="button";button.className="tmdb-poster-option"+(posterItem.file_path===activePosterPath?" is-selected":"");
-    button.dataset.posterPath=posterItem.file_path;
-    button.title="Use poster variant "+(index+1)+(posterItem.iso_639_1?" · "+posterItem.iso_639_1:" · no language label");
-    button.setAttribute("aria-label",button.title);
-    const img=document.createElement("img");img.loading="lazy";img.alt="";img.src="https://image.tmdb.org/t/p/w185"+posterItem.file_path;img.onerror=()=>{img.alt="Poster preview unavailable"};
-    const caption=document.createElement("span");caption.textContent=(posterItem.iso_639_1||"no text").toUpperCase()+" · "+(posterItem.vote_average?Number(posterItem.vote_average).toFixed(1)+"★":"TMDB");
-    button.append(img,caption);
-    button.addEventListener("click",()=>chooseTMDBPoster(posterItem.file_path));
-    grid.append(button);
+  const found=tmdbPosterVariants.findIndex(v=>v.file_path===activePosterPath);
+  carouselIndex=Math.max(0,found);
+  root.classList.toggle("is-single",tmdbPosterVariants.length<2);
+  const viewport=document.createElement("div");viewport.className="poster-carousel-viewport";viewport.tabIndex=0;
+  viewport.setAttribute("role","group");viewport.setAttribute("aria-label","TMDB poster options. Swipe right for the next poster, left for the previous one.");
+  const track=document.createElement("div");track.className="poster-carousel-track";
+  tmdbPosterVariants.forEach((v,i)=>{
+    const slide=document.createElement("figure");slide.className="poster-slide"+(i===carouselIndex?" is-current":"");slide.dataset.index=String(i);
+    const frame=document.createElement("div");frame.className="slide-frame";
+    const img=document.createElement("img");img.alt="";img.loading="lazy";img.draggable=false;img.src="https://image.tmdb.org/t/p/w342"+v.file_path;img.onerror=()=>{img.alt="Preview unavailable"};
+    frame.append(img);
+    const cap=document.createElement("figcaption");const c1=document.createElement("span");c1.textContent=posterVariantLabel(v);const c2=document.createElement("span");c2.textContent="POSTER "+(i+1);cap.append(c1,c2);
+    slide.append(frame,cap);
+    slide.addEventListener("click",()=>{if(dragMoved)return;goToPoster(Number(slide.dataset.index),true)});
+    track.append(slide);
   });
+  viewport.append(track);
+  const prev=document.createElement("button");prev.type="button";prev.className="poster-carousel-nav prev";prev.textContent="‹";prev.setAttribute("aria-label","Previous poster");
+  const next=document.createElement("button");next.type="button";next.className="poster-carousel-nav next";next.textContent="›";next.setAttribute("aria-label","Next poster");
+  prev.addEventListener("click",()=>goToPoster(carouselIndex-1,true));
+  next.addEventListener("click",()=>goToPoster(carouselIndex+1,true));
+  root.append(viewport,prev,next);
+  viewport.addEventListener("keydown",e=>{
+    if(e.key==="ArrowRight"){e.preventDefault();goToPoster(carouselIndex+1,true)}
+    else if(e.key==="ArrowLeft"){e.preventDefault();goToPoster(carouselIndex-1,true)}
+  });
+  attachCarouselDrag(viewport,track);
+  updateCarouselUI(false);
+}
+function updateCarouselUI(animate=true){
+  const viewport=$("#tmdbPosters .poster-carousel-viewport");if(!viewport)return;
+  const track=viewport.firstElementChild;if(!track)return;
+  if(animate===false)track.style.transition="none";
+  track.style.transform="translateX("+(-carouselIndex*viewport.clientWidth)+"px)";
+  if(animate===false)requestAnimationFrame(()=>{track.style.transition=""});
+  $("#tmdbPosterCount").textContent=(carouselIndex+1)+" / "+tmdbPosterVariants.length;
+  [...viewport.querySelectorAll(".poster-slide")].forEach((s,i)=>s.classList.toggle("is-current",i===carouselIndex));
+}
+function goToPoster(index,apply){
+  if(!tmdbPosterVariants.length)return;
+  carouselIndex=Math.max(0,Math.min(tmdbPosterVariants.length-1,index));
+  updateCarouselUI(true);
+  const viewport=$("#tmdbPosters .poster-carousel-viewport");if(viewport)viewport.focus({preventScroll:true});
+  if(apply)chooseTMDBPoster(tmdbPosterVariants[carouselIndex].file_path);
+}
+function attachCarouselDrag(viewport,track){
+  let startX=0,baseOffset=0,dragging=false;
+  viewport.addEventListener("pointerdown",e=>{
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    dragging=true;dragMoved=false;startX=e.clientX;baseOffset=-carouselIndex*viewport.clientWidth;
+    track.style.transition="none";
+    try{viewport.setPointerCapture(e.pointerId)}catch{}
+  });
+  viewport.addEventListener("pointermove",e=>{
+    if(!dragging)return;
+    const dx=e.clientX-startX;
+    if(Math.abs(dx)>6)dragMoved=true;
+    track.style.transform="translateX("+(baseOffset+dx)+"px)";
+  });
+  const end=e=>{
+    if(!dragging)return;dragging=false;track.style.transition="";
+    const dx=e.clientX-startX;
+    const threshold=Math.max(30,viewport.clientWidth*.12);
+    if(dx<=-threshold)goToPoster(carouselIndex+1,true);        /* swipe left → next poster */
+    else if(dx>=threshold)goToPoster(carouselIndex-1,true);  /* swipe right → previous poster */
+    else updateCarouselUI(true);
+    setTimeout(()=>{dragMoved=false},0);
+  };
+  viewport.addEventListener("pointerup",end);
+  viewport.addEventListener("pointercancel",end);
 }
 async function chooseTMDBPoster(filePath){
+  if(!selectedTMDB||!filePath||filePath===activePosterPath)return;
   const requestId=++tmdbLoadSequence;
-  if(!selectedTMDB||!filePath)return;
-  setTMDBStatus("Switching poster artwork…");
   try{
-    const loaded=await applyTMDBPoster(filePath,selectedTMDB.display_title,requestId);
-    if(loaded){activePosterPath=filePath;renderTMDBPosterOptions();setTMDBStatus("Poster changed. This artwork is from TMDB.","success")}
-  }catch(error){if(requestId===tmdbLoadSequence)setTMDBStatus("Could not load that poster variant. Try another one or upload your own.","error");console.warn("TMDB poster variant failed",error)}
+    const loaded=await applyTMDBPoster(filePath,requestId);
+    if(loaded)setTMDBStatus("Poster "+(carouselIndex+1)+" / "+tmdbPosterVariants.length+" applied · swipe for more artwork.","success");
+  }catch(error){setTMDBStatus("Could not load that poster variant. Try another one.","error");console.warn("TMDB poster variant failed",error)}
 }
-async function applyTMDBPoster(filePath,title,requestId){
+async function applyTMDBPoster(filePath,requestId){
   const blob=await fetchImage("https://image.tmdb.org/t/p/w780"+filePath);
   if(requestId!==tmdbLoadSequence)return false;
   const objectUrl=URL.createObjectURL(blob),img=new Image();
@@ -148,16 +187,27 @@ async function applyTMDBPoster(filePath,title,requestId){
     if(requestId!==tmdbLoadSequence){URL.revokeObjectURL(objectUrl);return false}
     if(posterObjectUrl)URL.revokeObjectURL(posterObjectUrl);
     posterObjectUrl=objectUrl;poster=img;activePosterPath=filePath;
-    setPoster(img,(title||"TMDB title")+" · TMDB poster");
-    $$(".poster-preset").forEach(button=>button.classList.remove("is-selected"));
-    renderTMDBPosterOptions();
+    updateCarouselUI(false);paint();
     return true;
   }catch(error){URL.revokeObjectURL(objectUrl);throw error}
 }
-async function selectTMDB(item,options={}){
+async function applyTMDBBackdrop(filePath,requestId){
+  if(!filePath)return false;
+  try{
+    const blob=await fetchImage("https://image.tmdb.org/t/p/w1280"+filePath);
+    if(requestId!==tmdbLoadSequence)return false;
+    const objectUrl=URL.createObjectURL(blob),img=new Image();
+    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error("Backdrop could not be decoded"));img.src=objectUrl});
+    if(requestId!==tmdbLoadSequence){URL.revokeObjectURL(objectUrl);return false}
+    if(backObjectUrl)URL.revokeObjectURL(backObjectUrl);
+    backObjectUrl=objectUrl;back=img;paint();
+    return true;
+  }catch(error){console.warn("TMDB backdrop failed",error);return false}
+}
+async function loadTMDBTitle(item,options={}){
   const requestId=options.requestId??(++tmdbLoadSequence);
   const buttons=$("#tmdbResults").querySelectorAll("button");buttons.forEach(button=>button.disabled=true);
-  setTMDBStatus(options.automatic?"Found the title. Loading its posters…":"Loading title and alternate posters…");
+  setTMDBStatus(options.automatic?"Found the title. Loading its posters…":"Loading title and poster options…");
   try{
     const detailPath="/"+item.media_type+"/"+item.id;
     const detailParams=item.media_type==="movie"?{append_to_response:"credits"}:{};
@@ -178,14 +228,15 @@ async function selectTMDB(item,options={}){
     if(preferredPath&&!allPaths.has(preferredPath))allPaths.set(preferredPath,{file_path:preferredPath,iso_639_1:null,vote_average:0,vote_count:0});
     tmdbPosterVariants=[...allPaths.values()];
     if(preferredPath)tmdbPosterVariants.sort((a,b)=>Number(b.file_path===preferredPath)-Number(a.file_path===preferredPath));
-    renderTMDBPosterOptions();
-    if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images. Upload a poster manually.");
+    if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images.");
     $("#filmTitle").value=mediaTitle.slice(0,100);
-    $("#filmYear").value=[mediaYear,creator].filter(Boolean).join(" · ").slice(0,60);
+    $("#filmYear").value=[creator,mediaYear].filter(Boolean).join(", ").slice(0,60);
     const primaryPath=preferredPath||tmdbPosterVariants[0].file_path;
-    const loaded=await applyTMDBPoster(primaryPath,mediaTitle,requestId);
+    const loaded=await applyTMDBPoster(primaryPath,requestId);
     if(!loaded)return;
-    setTMDBStatus((options.automatic?"Review imported · poster loaded automatically. ":"Poster loaded. ")+tmdbPosterVariants.length+" TMDB poster option"+(tmdbPosterVariants.length===1?"":"s")+" available below. Choose any thumbnail to switch artwork.","success");
+    renderTMDBPosterOptions();
+    void applyTMDBBackdrop(detail.backdrop_path||item.backdrop_path||"",requestId);
+    setTMDBStatus((options.automatic?"Review imported · poster loaded automatically. ":"Poster loaded. ")+tmdbPosterVariants.length+" TMDB poster option"+(tmdbPosterVariants.length===1?"":"s")+" — swipe the artwork to switch.","success");
   }catch(error){
     if(requestId===tmdbLoadSequence)setTMDBStatus(error.message||"Could not load TMDB poster artwork.","error");
     console.warn("TMDB title selection failed",error);
@@ -199,7 +250,7 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
   $("#tmdbPosterOptionsWrap").hidden=true;
   $("#tmdbPosters").replaceChildren();
   if(!tmdbKey()){
-    setTMDBStatus("Review imported. Save your TMDB v3 key above to load the poster automatically; you can also upload an image manually.","error");
+    setTMDBStatus("Review imported. Save your TMDB v3 key in step B to load the artwork automatically.","error");
     return;
   }
   if(!query){setTMDBStatus("Review imported. No title was available for TMDB search.","error");return}
@@ -222,46 +273,236 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
     candidates=candidates.map(candidate=>({...candidate,_framixScore:scoreTMDBResult(candidate,query,yearHint,mediaHint)}))
       .sort((a,b)=>b._framixScore-a._framixScore);
     tmdbResults=candidates.slice(0,10);renderTMDBResults();
+    populateFilmSelect(candidates.slice(0,10));
     const best=candidates[0];
     if(!best||best._framixScore<55){
-      setTMDBStatus("Review imported, but TMDB couldn't find a confident title match. Choose the correct title above or upload a poster.","error");
+      setTMDBStatus("Review imported, but TMDB couldn't find a confident title match. Choose the correct title in step B.","error");
       return;
     }
-    await selectTMDB(best,{automatic:true,requestId});
+    await loadTMDBTitle(best,{automatic:true,requestId});
   }catch(error){
     if(requestId===tmdbLoadSequence)setTMDBStatus("Review imported, but TMDB poster lookup failed: "+(error.message||"unknown error"),"error");
   }
 }
 
-let poster=null,client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],posterObjectUrl=null,lastReviewMediaHint="movie";
-const val=s=>$(s).value.trim(), themeName=()=>$('input[name="theme"]:checked')?.value||($("#themeFamily")?.value==="letterboxd"?"lb_green":$("#themeFamily")?.value==="serializd"?"sz_violet":"noir");
-function activeTheme(){const family=themeFamilies[$("#themeFamily")?.value||"general"]||themeFamilies.general;return family.themes[themeName()]||Object.values(family.themes)[0]}
-function setThemeOptions(){const family=themeFamilies[$("#themeFamily").value]||themeFamilies.general,grid=$("#themeSwatches");grid.replaceChildren();Object.entries(family.themes).forEach(([key,t],i)=>{const label=document.createElement("label"),radio=document.createElement("input"),sw=document.createElement("span"),name=document.createElement("b");radio.type="radio";radio.name="theme";radio.value=key;radio.checked=i===0;sw.className="swatch";sw.style.background="linear-gradient(135deg,"+t.bg+" 40%,"+t.accent+" 41%, "+t.accent+" 48%,"+t.bg+" 49%)";name.textContent=key.replace(/^lb_|^sz_/,"").replace(/_/g," ").replace(/^./,x=>x.toUpperCase());label.append(radio,sw,name);grid.append(label)});render()}
-const safeStore={get(k){try{return localStorage.getItem(k)||""}catch{return""}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
-function cover(img,x,y,w,h){const scale=Math.max(w/img.width,h/img.height),dw=img.width*scale,dh=img.height*scale;ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}
-function wrap(text,width,max){const words=String(text||"").split(/\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(line&&ctx.measureText(next).width>width){lines.push(line);line=word}else line=next}if(line)lines.push(line);if(lines.length>max){lines.length=max;lines[max-1]=lines[max-1].replace(/[.,;:\s]+$/,"")+"…"}return lines}
-function textBlock(text,x,y,width,lh,max){const lines=[];String(text||"").split(/\n+/).filter(Boolean).forEach(p=>lines.push(...wrap(p,width,max)));const show=lines.slice(0,max);if(lines.length>max&&show.length)show[show.length-1]=show[show.length-1].replace(/[.,;:\s]+$/,"")+"…";show.forEach((line,i)=>ctx.fillText(line,x,y+i*lh));return y+show.length*lh}
-function render(){
- const t=activeTheme(),layout=$("#posterLayout").value,title=val("#filmTitle")||"Untitled",meta=val("#filmYear"),review=$("#showReview").checked?val("#reviewText"):"",showRating=$("#showRating").checked,rating=Number($("#rating").value)||0,m=76;
- ctx.clearRect(0,0,W,H);ctx.textBaseline="top";ctx.textAlign="left";ctx.fillStyle=t.bg;ctx.fillRect(0,0,W,H);
- const imageHeight=layout==="poster"?H:layout==="review"?Math.round(H*.47):Math.round(H*.34);
- if(poster){cover(poster,0,0,W,imageHeight);const shade=ctx.createLinearGradient(0,0,0,imageHeight);shade.addColorStop(0,"rgba(3,7,13,.28)");shade.addColorStop(.48,t.overlay);shade.addColorStop(1,t.bg);ctx.fillStyle=shade;ctx.fillRect(0,0,W,imageHeight)}
- else{const g=ctx.createRadialGradient(W*.72,H*.23,10,W*.72,H*.23,W*.8);g.addColorStop(0,t.accent+"66");g.addColorStop(1,t.bg);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.strokeStyle=t.accent+"33";ctx.lineWidth=2;[300,355].forEach(r=>{ctx.beginPath();ctx.arc(W*.72,H*.23,r,0,Math.PI*2);ctx.stroke()})}
- if(layout!=="poster"){ctx.fillStyle=t.bg;ctx.fillRect(0,imageHeight,W,H-imageHeight)}
- const footerY=H-310;
- ctx.fillStyle=t.ink;ctx.font="500 18px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("FRAMIX / FILM JOURNAL",m,240);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText(layout==="poster"?"CINEMATIC POSTER":layout==="review"?"PERSONAL REVIEW":"EDITORIAL FRAME",W-m,240);
- ctx.strokeStyle=t.accent+"66";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,282);ctx.lineTo(W-m,282);ctx.stroke();
- let y=layout==="poster"?(poster?H*.45:H*.37):layout==="review"?imageHeight+38:imageHeight+35;
- ctx.textAlign="left";ctx.fillStyle=t.accent;ctx.font="500 18px 'DM Mono',monospace";ctx.fillText(layout==="poster"?"A FILM TO REMEMBER":layout==="review"?"RECENTLY WATCHED":"SELECTED FRAME",m,y);y+=42;
- ctx.fillStyle=t.ink;const titleSize=layout==="review"?62:layout==="editorial"?70:76;ctx.font="600 "+titleSize+"px 'Playfair Display',Georgia,serif";y=textBlock(title,m,y,W-2*m,Math.round(titleSize*1.08),2)+8;
- if(meta){ctx.fillStyle=t.muted;ctx.font="500 20px 'DM Mono',monospace";y=textBlock(meta.toUpperCase(),m,y,W-2*m,29,1)+20}
- if(showRating){ctx.fillStyle=t.accent;ctx.font="500 37px 'DM Sans',sans-serif";ctx.fillText("★".repeat(Math.floor(rating))+(rating%1?"½":""),m,y);ctx.fillStyle=t.muted;ctx.font="500 17px 'DM Mono',monospace";ctx.fillText(rating.toFixed(1)+" / 5",m,y+45);y+=75}
- if(review){ctx.fillStyle=t.ink;ctx.font="italic 27px 'Playfair Display',Georgia,serif";textBlock("“"+review+"”",m,y,W-2*m,37,3)}
- ctx.strokeStyle=t.accent+"88";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m,footerY);ctx.lineTo(W-m,footerY);ctx.stroke();ctx.fillStyle=t.muted;ctx.font="500 14px 'DM Mono',monospace";ctx.textAlign="left";ctx.fillText("YOUR TASTE, IN A FRAME.",m,footerY+23);ctx.textAlign="right";ctx.fillStyle=t.accent;ctx.fillText("FRAMIX © 2026",W-m,footerY+23);
- $("#previewStatus").textContent=poster?"ARTWORK LOADED ✓":"READY TO FRAME ↗";
+/* ---------- Letterboxd review link → TMDB search ---------- */
+function populateFilmSelect(items){
+  lbMatches=items;
+  const select=$("#filmSelect");select.replaceChildren();
+  items.forEach(r=>{const o=document.createElement("option");o.value=String(r.id);o.textContent=r.title+" ("+String(r.release_date||"").slice(0,4)+")";select.append(o)});
+  $("#filmSelectWrap").hidden=!items.length;
+}
+async function searchLetterboxdLink(){
+  const link=$("#lbReviewLink").value.trim();
+  if(link===lbLinkSearched&&lbMatches.length)return lbMatches;
+  const m=link.match(/letterboxd\.com\/([^\/]+)\/film\/([^\/?#]+)(?:\/(\d+))?/i);
+  if(!m)throw Error("Paste a Letterboxd review link like letterboxd.com/your-name/film/film-title/");
+  let slug=m[2],year="";
+  const y=slug.match(/-(\d{4})$/);if(y){year=y[1];slug=slug.slice(0,-5)}
+  const params={query:slug.replace(/-/g," "),include_adult:"false"};
+  if(year)params.year=year;
+  const d=await tmdb("/search/movie",params);
+  const want=normalizeTitle(slug);
+  const matches=(d.results||[]).slice()
+    .sort((a,b)=>((normalizeTitle(b.title)===want)-(normalizeTitle(a.title)===want))||((b.vote_count||0)-(a.vote_count||0)))
+    .slice(0,10).map(r=>tmdbResult(r,"movie"));
+  if(!matches.length)throw Error("TMDB couldn't find that film. Check the link, or search the title manually in step B.");
+  lbLinkSearched=link;
+  populateFilmSelect(matches);
+  return matches;
 }
 
-function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
+/* ---------- Letterboxd review fetching (RSS + review page) ---------- */
+async function viaProxy(url,ok){
+  const enc=encodeURIComponent,bust=Date.now();
+  const custom=safeStore.get("framix.proxy").replace(/\/+$/,"");
+  const list=[];
+  if(custom)list.push(u=>custom+"/?url="+enc(u));
+  list.push(
+    u=>"https://api.allorigins.win/raw?url="+enc(u)+"&_="+bust,
+    u=>"https://api.codetabs.com/v1/proxy/?quest="+enc(u),
+    u=>"https://corsproxy.io/?url="+enc(u),
+    u=>"https://thingproxy.freeboard.io/fetch/"+u
+  );
+  window.proxyLog=[];
+  for(const p of list){
+    const u=p(url);let host="?";try{host=new URL(u).hostname.replace(/^(api|www)\./,"")}catch{}
+    try{
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+      const r=await fetch(u,{credentials:"omit",signal:controller.signal});clearTimeout(timer);
+      if(!r.ok){window.proxyLog.push(host+":"+r.status);continue}
+      const x=await r.text();
+      if(ok(x))return x;
+      window.proxyLog.push(host+":bad");
+    }catch(e){window.proxyLog.push(host+":"+(e.name==="AbortError"?"timeout":"blocked"))}
+  }
+  throw Error("proxy");
+}
+const cleanParas=ps=>ps.map(p=>p.textContent.trim())
+  .filter(t=>t&&!/^Watched on /i.test(t)&&!/^This review may contain spoilers/i.test(t)).join("\n");
+async function fromRss(user,slug,n){
+  const txt=await viaProxy("https://letterboxd.com/"+user+"/rss/",x=>/<item[\s>]/.test(x));
+  const xml=new DOMParser().parseFromString(txt,"text/xml");
+  const target="/"+user+"/film/"+slug+(n?"/"+n:"");
+  let items=[...xml.getElementsByTagName("item")].filter(it=>{
+    const l=it.getElementsByTagName("link")[0];return l&&l.textContent.includes("/film/"+slug+"/")});
+  if(!items.length)return null;
+  const path=it=>{try{return new URL(it.getElementsByTagName("link")[0].textContent).pathname.replace(/\/+$/,"")}catch(e){return ""}};
+  items.sort((a,b)=>(path(b)===target)-(path(a)===target));
+  const getText=it=>{
+    const d=it.getElementsByTagName("description")[0];if(!d)return "";
+    const h=new DOMParser().parseFromString(d.textContent,"text/html");
+    return cleanParas([...h.querySelectorAll("p")].filter(p=>!p.querySelector("img")))};
+  const getRate=it=>{
+    let e=it.getElementsByTagNameNS("*","memberRating")[0]||it.getElementsByTagName("letterboxd:memberRating")[0];
+    let v=e?parseFloat(e.textContent):NaN;
+    if(!(v>=0.5&&v<=5)){
+      const t=(it.getElementsByTagName("title")[0]||{}).textContent||"";
+      const part=t.split(" - ").pop();
+      v=(part.match(/★/g)||[]).length+(part.includes("½")?0.5:0)}
+    return v>=0.5&&v<=5&&v*2===Math.round(v*2)?v:null};
+  const it=items.find(i=>getText(i))||items[0];
+  return {text:getText(it),rating:getRate(it)};
+}
+async function fromPage(user,slug,n){
+  const url="https://letterboxd.com/"+user+"/film/"+slug+"/"+(n?n+"/":"");
+  const html=await viaProxy(url,x=>x.length>2000&&/letterboxd/i.test(x)&&!/Just a moment|cf-browser-verification/i.test(x));
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  let rating=null;
+  const r=doc.querySelector('.film-detail .rating[class*="rated-"], .review .rating[class*="rated-"], .viewing-poster-container ~ * .rating[class*="rated-"]')||doc.querySelector('.rating[class*="rated-"]');
+  if(r){const m=r.className.match(/rated-(\d+)/);if(m)rating=parseInt(m[1])/2}
+  if(!(rating>=0.5&&rating<=5))rating=null;
+  let body=doc.querySelector(".js-review-body")||doc.querySelector(".review .body-text")||doc.querySelector(".body-text");
+  let text=body?cleanParas([...body.querySelectorAll("p")]):"";
+  if(!text){const og=doc.querySelector('meta[property="og:description"]');if(og)text=og.content.trim()}
+  return {text,rating};
+}
+async function fetchReview(){
+  const link=$("#lbReviewLink").value.trim();
+  const m=link.match(/letterboxd\.com\/([^\/]+)\/film\/([^\/?#]+)(?:\/(\d+))?/i);
+  if(!m)throw Error("Paste your Letterboxd review link first (letterboxd.com/your-name/film/film-title/).");
+  const user=m[1],slug=m[2],n=m[3]||"";
+  let data=null,src="";
+  try{data=await fromRss(user,slug,n);if(data)src="RSS"}catch(e){console.warn("RSS fetch failed",e)}
+  if(!data||!data.text||!data.rating){
+    try{const p=await fromPage(user,slug,n);
+      if(p){data={text:(data&&data.text)||p.text,rating:(data&&data.rating)||p.rating};src="review page"}
+    }catch(e){console.warn("Page fetch failed",e)}
+  }
+  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or set a custom proxy. ["+(window.proxyLog||[]).join(" · ")+"]");
+  if(data.rating&&[...$("#rating").options].some(o=>o.value===String(data.rating)))$("#rating").value=String(data.rating);
+  if(data.text)$("#reviewText").value=data.text;
+  $("#reviewerName").value=user;
+  paint();
+  if(!data.text)return "rating "+(data.rating||"not found")+" — write the review text manually";
+  return src+(data.rating?" · "+data.rating+"★":" · rating not found, pick one manually");
+}
+
+/* ---------- Card painting (ReelNote engine) ---------- */
+function cover(c,img,x,y,w,h){const s=Math.max(w/img.width,h/img.height),dw=img.width*s,dh=img.height*s;
+  c.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function blurred(c,img){const k=28,s=document.createElement("canvas");s.width=W/k;s.height=H/k;
+  const x=s.getContext("2d");cover(x,img,0,0,s.width,s.height);c.imageSmoothingQuality="high";c.drawImage(s,0,0,W,H)}
+function wrap(text,max,n=3){const w=String(text||"").split(/\s+/),L=[];let l="";
+  w.forEach(a=>{const x=l?l+" "+a:a;if(ctx.measureText(x).width>max&&l){L.push(l);l=a}else l=x});
+  if(l)L.push(l);return L.slice(0,n)}
+function avgColor(img){if(!img)return "#2a2a2e";try{const s=document.createElement("canvas");s.width=s.height=16;const x=s.getContext("2d");x.drawImage(img,0,0,16,16);
+  const d=x.getImageData(0,0,16,16).data;let r=0,g=0,b=0,n=0;for(let i=0;i<d.length;i+=4){const l=d[i]+d[i+1]+d[i+2];if(l<60||l>700)continue;r+=d[i];g+=d[i+1];b+=d[i+2];n++}
+  return n?"rgb("+Math.round(r/n)+","+Math.round(g/n)+","+Math.round(b/n)+")":"#2a2a2e"}catch(e){return "#2a2a2e"}}
+function drawPoster(c,w,y){if(!poster)return y;const h=w*poster.height/poster.width,x=(W-w)/2;
+  c.save();c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,18);c.fillStyle="#000";c.fill();c.restore();
+  c.save();rr(c,x,y,w,h,18);c.clip();c.drawImage(poster,x,y,w,h);c.restore();
+  c.save();rr(c,x,y,w,h,18);c.lineWidth=5;c.strokeStyle="rgba(255,255,255,.9)";c.stroke();c.restore();return y+h}
+function drawPosterRot(c,w,y,deg){if(!poster)return y;const h=w*poster.height/poster.width,x=(W-w)/2,a=deg*Math.PI/180;
+  c.save();c.translate(W/2,y+h/2);c.rotate(a);c.translate(-W/2,-(y+h/2));
+  c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,18);c.fillStyle="#000";c.fill();c.shadowColor="transparent";
+  c.save();rr(c,x,y,w,h,18);c.clip();c.drawImage(poster,x,y,w,h);c.restore();
+  rr(c,x,y,w,h,18);c.lineWidth=5;c.strokeStyle="rgba(255,255,255,.9)";c.stroke();c.restore();
+  return y+h+Math.abs(Math.sin(a))*w/2+10}
+function drawPolaroid(c,w,y){if(!poster)return y;const p=26,iw=w-p*2,ih=iw*poster.height/poster.width,h=ih+p*2+50,x=(W-w)/2;
+  c.save();c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,10);c.fillStyle="#f4f1ea";c.fill();c.restore();
+  c.drawImage(poster,x+p,y+p,iw,ih);return y+h}
+const reviewText=()=>$("#showReview").checked?val("#reviewText"):"";
+function drawReview(c,y,maxY,color){
+  const text=reviewText();if(!text)return y;
+  c.textBaseline="top";c.textAlign="center";c.direction=/[\u0600-\u06FF]/.test(text)?"rtl":"ltr";
+  const paras=text.split(/\n+/).filter(Boolean);
+  let size=42,lines=[],lh=0;
+  for(;size>=24;size-=2){
+    c.font=size+"px system-ui,sans-serif";lh=size*1.42;lines=[];
+    paras.forEach(p=>lines.push(...wrap(p,880,99)));
+    if(y+lines.length*lh<=maxY)break;
+  }
+  const fit=Math.max(1,Math.floor((maxY-y)/lh));
+  if(lines.length>fit){lines=lines.slice(0,fit);lines[fit-1]=lines[fit-1].replace(/[\s.,،]*$/,"")+"…"}
+  c.fillStyle=color;c.globalAlpha=.93;
+  lines.forEach((l,i)=>c.fillText(l,W/2,y+i*lh));
+  c.globalAlpha=1;c.direction="ltr";
+  return y+lines.length*lh+30;
+}
+function drawText(c,y,starsFirst,hasRev){
+  const tc=$("#textColor").value,sc=$("#starColor").value,r=parseFloat($("#rating").value);
+  const ts=hasRev?64:78,ss=hasRev?84:104;
+  c.textAlign="center";c.textBaseline="top";
+  const stars=()=>{c.font="bold "+ss+"px system-ui,sans-serif";c.fillStyle=sc;
+    c.fillText("★".repeat(Math.floor(r))+(r%1?"½":""),W/2,y);y+=ss*1.35};
+  const title=()=>{c.font="bold "+ts+"px system-ui,sans-serif";c.fillStyle=tc;
+    wrap($("#filmTitle").value||"Untitled film",900).forEach(l=>{c.fillText(l,W/2,y);y+=ts*1.22});y+=6;
+    c.font=(hasRev?32:38)+"px system-ui,sans-serif";c.globalAlpha=.9;c.fillText($("#filmYear").value,W/2,y);c.globalAlpha=1;y+=hasRev?56:70};
+  const who=yy=>{if(!$("#showReviewer").checked||!$("#reviewerName").value.trim())return;
+    const a="Reviewed by ",b=$("#reviewerName").value.trim();c.font="28px system-ui,sans-serif";const wa=c.measureText(a).width;
+    c.font="bold 28px system-ui,sans-serif";const wb=c.measureText(b).width,x=(W-wa-wb)/2;
+    c.textAlign="left";c.fillStyle=tc;c.globalAlpha=.85;c.font="28px system-ui,sans-serif";c.fillText(a,x,yy);
+    c.font="bold 28px system-ui,sans-serif";c.fillText(b,x+wa,yy);c.globalAlpha=1;c.textAlign="center"};
+  if(starsFirst){stars();title()}else{title();stars()}
+  if(hasRev){y=drawReview(c,y,H-150,tc);who(H-110)}else who(y);
+}
+function paint(){
+  ctx.fillStyle="#0b0b0c";ctx.fillRect(0,0,W,H);
+  const hr=!!reviewText();
+  const bg=back||poster;
+  const solid=cardStyle==="banner"||cardStyle==="cinema";
+  if(cardStyle==="color"){const gg=ctx.createLinearGradient(0,0,0,H);gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,"#0b0b0c");ctx.fillStyle=gg;ctx.fillRect(0,0,W,H)}
+  else if(bg&&!solid){if(cardStyle==="blur"||cardStyle==="glass")blurred(ctx,poster||bg);else if(cardStyle==="fullposter")cover(ctx,poster||bg,0,0,W,H);else cover(ctx,bg,0,0,W,H)}
+  ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100)+")";ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,H*.4,0,H);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.92)");ctx.fillStyle=g;ctx.fillRect(0,H*.4,W,H*.6);
+  let e;
+  if(cardStyle==="medium"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,430,330);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(cardStyle==="big"){e=hr?drawPoster(ctx,520,120):drawPoster(ctx,820,150);drawText(ctx,e+(hr?50:70),false,hr)}
+  else if(cardStyle==="small"){e=hr?drawPoster(ctx,240,140):drawPoster(ctx,300,420);drawText(ctx,e+(hr?50:100),false,hr)}
+  else if(cardStyle==="blur"){e=hr?drawPoster(ctx,380,150):drawPoster(ctx,560,260);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(cardStyle==="starsfirst")drawText(ctx,hr?200:720,true,hr);
+  else if(cardStyle==="tilt"){e=hr?drawPosterRot(ctx,330,190,-5):drawPosterRot(ctx,470,330,-5);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(cardStyle==="polaroid"){e=hr?drawPolaroid(ctx,380,140):drawPolaroid(ctx,560,240);drawText(ctx,e+(hr?50:80),false,hr)}
+  else if(cardStyle==="banner"){const bh=780,bi=back||poster;
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,0,W,bh);ctx.clip();cover(ctx,bi,0,0,W,bh);ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100*.6)+")";ctx.fillRect(0,0,W,bh);ctx.restore()}
+    const fg=ctx.createLinearGradient(0,bh-320,0,bh);fg.addColorStop(0,"rgba(11,11,12,0)");fg.addColorStop(1,"rgba(11,11,12,1)");ctx.fillStyle=fg;ctx.fillRect(0,bh-320,W,320);
+    e=hr?drawPoster(ctx,300,470):drawPoster(ctx,400,500);drawText(ctx,e+(hr?50:80),false,hr)}
+  else if(cardStyle==="cinema"){const by=hr?120:340,bh2=hr?560:607,bi=back||poster;
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,by,W,bh2);ctx.clip();cover(ctx,bi,0,by,W,bh2);ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100*.5)+")";ctx.fillRect(0,by,W,bh2);ctx.restore()}
+    ctx.fillStyle="rgba(255,255,255,.85)";ctx.fillRect(0,by-6,W,3);ctx.fillRect(0,by+bh2+3,W,3);
+    drawText(ctx,by+bh2+70,false,hr)}
+  else if(cardStyle==="glass"){const py=hr?90:240,ph=hr?H-180:1420;
+    ctx.save();rr(ctx,60,py,W-120,ph,40);ctx.fillStyle="rgba(255,255,255,.10)";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="rgba(255,255,255,.28)";ctx.stroke();ctx.restore();
+    e=hr?drawPoster(ctx,300,py+60):drawPoster(ctx,440,py+70);drawText(ctx,e+(hr?50:80),false,hr)}
+  else if(cardStyle==="color"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,520,260);drawText(ctx,e+(hr?50:90),false,hr)}
+  else if(cardStyle==="fullposter")drawText(ctx,hr?900:1300,false,hr);
+  else drawText(ctx,hr?200:760,false,hr);
+  $("#previewStatus").textContent=poster?"ARTWORK LOADED ✓":"READY TO FRAME ↗";
+}
+function render(){clearTimeout(render.t);render.t=setTimeout(paint,60)}
+function buildStyleChips(){
+  const wrap=$("#styleChips");wrap.replaceChildren();
+  CARD_STYLES.forEach(([key,label])=>{
+    const b=document.createElement("button");b.type="button";b.className="style-chip"+(key===cardStyle?" is-selected":"");b.textContent=label;
+    b.addEventListener("click",()=>{cardStyle=key;wrap.querySelectorAll(".style-chip").forEach(x=>x.classList.toggle("is-selected",x===b));paint()});
+    wrap.append(b);
+  });
+}
+
+/* ---------- Diary connections (public RSS / diary endpoints) ---------- */
+let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function normalizeSZ(input){let s=String(input||"").trim();if(/^https?:\/\//i.test(s)){try{const u=new URL(s);if(!/(^|\.)serializd\.com$/i.test(u.hostname))return"";const parts=u.pathname.split("/").filter(Boolean);const i=parts.findIndex(x=>["user","users"].includes(x.toLowerCase()));s=i>=0?parts[i+1]:(parts[parts.length-1]||"")}catch{return""}}s=s.replace(/^@/,"").replace(/\/$/,"");return /^[A-Za-z0-9_-]{2,40}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
@@ -273,8 +514,6 @@ async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUse
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
 function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No public diary entries were returned. The profile link is saved; this unofficial endpoint may require a session. You can still create posters manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
 async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1"),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);status("#serializdStatus","Profile shortcut saved. Serializd's unofficial public endpoint may be unavailable or require a session; no password was collected.","error");console.warn(err)}finally{button.disabled=false}}
-function setPoster(img,name){poster=img;$("#uploadTitle").textContent=name;$$(".poster-preset").forEach(b=>b.classList.toggle("is-selected",b.dataset.posterName===name));render()}
-function loadSample(button){const url=button.dataset.posterUrl,name=button.dataset.posterName;button.disabled=true;$("#previewStatus").textContent="LOADING FILM STILL…";(async()=>{try{const blob=await fetchImage(url);if(posterObjectUrl)URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=URL.createObjectURL(blob);const img=new Image();img.onload=()=>{setPoster(img,name);button.disabled=false};img.onerror=()=>{button.disabled=false;$("#previewStatus").textContent="IMAGE FAILED TO LOAD"};img.src=posterObjectUrl}catch(e){button.disabled=false;$("#previewStatus").textContent="SAMPLE UNAVAILABLE";status("#lbStatus","This sample source is unavailable. Upload a still from your device or try another sample.","error");console.warn(e)}})()}
 async function fetchImage(url){
   let lastError=null;
   const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
@@ -291,13 +530,28 @@ async function fetchImage(url){
   }
   throw lastError||Error("Image unavailable");
 }
+
+/* ---------- Auth (optional Supabase) ---------- */
 function setMsg(s,error=false){const e=$("#authMessage");e.textContent=s;e.classList.toggle("error",error)}
 function setMode(mode){authMode=mode;$$("[data-mode]").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#authHeading").innerHTML=mode==="signup"?"Make it <em>personal.</em>":"Welcome <em>back.</em>";$("#authDescription").textContent=mode==="signup"?"Create an account with your email and a strong password.":"Sign in to your Framix account.";$("#authSubmit").innerHTML=mode==="signup"?"Create account →":"Sign in →";$("#authPassword").autocomplete=mode==="signup"?"new-password":"current-password";$("#forgotPassword").hidden=mode!=="signin";setMsg("")}
 function updateAuth(session){const email=session?.user?.email;$("#accountLabel").textContent=email?"Signed in · "+email:"Your film journal, reframed." ;$("#authOpen").hidden=!!email;$("#signOut").hidden=!email}
 function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.supabaseAnonKey||!window.supabase?.createClient){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}try{client=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey)}catch(e){console.warn(e)}if(!client){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}$("#authFields").hidden=false;$("#authSetupNote").hidden=true;client.auth.getSession().then(({data})=>updateAuth(data?.session||null)).catch(()=>updateAuth(null));client.auth.onAuthStateChange((_e,session)=>updateAuth(session));if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery")$("#resetDialog").showModal()}
 
-$("#themeFamily").addEventListener("change",()=>{setThemeOptions();const family=$("#themeFamily").value;$("#filmTitleLabel").textContent=family==="serializd"?"TV SERIES TITLE":family==="letterboxd"?"FILM TITLE":"FILM OR SERIES TITLE";$("#filmYearLabel").textContent=family==="serializd"?"YEAR / CREATOR":family==="letterboxd"?"YEAR / DIRECTOR":"YEAR / DIRECTOR";});
-$("#themeSwatches").addEventListener("change",render);
+/* ---------- Wiring ---------- */
+$("#lbFetchAll").addEventListener("click",async()=>{
+  const button=$("#lbFetchAll");button.disabled=true;
+  try{
+    setTMDBStatus("Searching TMDB for the film…");
+    await searchLetterboxdLink();
+    const chosen=lbMatches.find(r=>String(r.id)===$("#filmSelect").value)||lbMatches[0];
+    await loadTMDBTitle(chosen,{automatic:true});
+    setTMDBStatus("Fetching the review and rating from Letterboxd…");
+    const info=await fetchReview();
+    setTMDBStatus("Loaded ✓ poster, backdrop, review and rating ("+info+")","success");
+  }catch(error){setTMDBStatus(error.message||"Could not load that review.","error");console.warn(error)}
+  finally{button.disabled=false}
+});
+$("#lbReviewLink").addEventListener("input",()=>{lbLinkSearched=""});
 $("#tmdbSaveKey").addEventListener("click",()=>{
  const key=val("#tmdbKey");
  if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
@@ -305,30 +559,24 @@ $("#tmdbSaveKey").addEventListener("click",()=>{
  setTMDBStatus("TMDB key saved locally. Looking up the current film/show…","success");
  void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
 });
-$("#tmdbSearch").addEventListener("click",searchTMDB);$("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
-const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;setThemeOptions();
-$("#cardForm").addEventListener("input",()=>{$("#charCount").textContent=$("#reviewText").value.length+" / 360";render()});
-$("#cardForm").addEventListener("change",render);
-$$(".poster-preset").forEach(button=>button.addEventListener("click",()=>{const sample=samples.find(item=>item.name===button.dataset.posterName);if(sample){$("#filmTitle").value=sample.name;loadSample(button)}}));
-$("#posterUpload").addEventListener("change",event=>{
- const file=event.target.files?.[0];if(!file)return;
- if(!["image/jpeg","image/png","image/webp"].includes(file.type)){status("#lbStatus","Use JPG, PNG or WebP.","error");return}
- if(file.size>12*1024*1024){status("#lbStatus","Image exceeds 12 MB. Choose a smaller file.","error");return}
- const reader=new FileReader();reader.onerror=()=>status("#lbStatus","Could not read that image.","error");
- reader.onload=()=>{const img=new Image();img.onload=()=>{
-   if(posterObjectUrl){URL.revokeObjectURL(posterObjectUrl);posterObjectUrl=null}
-   poster=img;activePosterPath="";$("#uploadTitle").textContent=file.name.slice(0,35);
-   $$(".poster-preset").forEach(button=>button.classList.remove("is-selected"));render();
- };img.onerror=()=>status("#lbStatus","Image could not be opened.","error");img.src=reader.result};
- reader.readAsDataURL(file);
+$("#proxySave").addEventListener("click",()=>{
+ const p=val("#proxyUrl");
+ safeStore.set("framix.proxy",p);
+ setTMDBStatus(p?"Custom proxy saved locally — it will be tried first for review fetching.":"Custom proxy cleared.");
+});
+$("#tmdbSearch").addEventListener("click",searchTMDB);
+$("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
+["#filmTitle","#filmYear","#rating","#reviewerName","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
+  const el=$(sel);if(!el)return;
+  el.addEventListener("input",render);el.addEventListener("change",render);
 });
 $("#downloadCard").addEventListener("click",()=>{
- render();canvas.toBlob(blob=>{
-   if(!blob){$("#previewStatus").textContent="EXPORT FAILED — TRY AGAIN";return}
-   const url=URL.createObjectURL(blob),anchor=document.createElement("a");
-   anchor.href=url;anchor.download="framix-story-"+(val("#filmTitle")||"review").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".png";
-   anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1200);$("#previewStatus").textContent="INSTAGRAM STORY DOWNLOADED ✓";
- },"image/png");
+  paint();canvas.toBlob(blob=>{
+    if(!blob){$("#previewStatus").textContent="EXPORT FAILED — TRY AGAIN";return}
+    const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+    anchor.href=url;anchor.download="framix-story-"+(val("#filmTitle")||"review").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".png";
+    anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1200);$("#previewStatus").textContent="INSTAGRAM STORY DOWNLOADED ✓";
+  },"image/png");
 });
 $("#letterboxdForm").addEventListener("submit",loadLB);
 $("#lbReviews").addEventListener("click",event=>{
@@ -338,10 +586,10 @@ $("#lbReviews").addEventListener("click",event=>{
  $("#filmYear").value=[review.year,review.date?"Watched "+review.date:""].filter(Boolean).join(" · ").slice(0,60);
  if(review.rating!==null){
    $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
-   $("#showRating").checked=true;
- }else $("#showRating").checked=false;
- $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
- $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
+ }
+ $("#reviewText").value=review.text||"";$("#showReview").checked=!!review.text;
+ const who=normalizeLB($("#lbUsername").value);if(who)$("#reviewerName").value=who;
+ render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
@@ -353,10 +601,10 @@ $("#serializdReviews").addEventListener("click",event=>{
  $("#filmYear").value=[review.year,review.date].filter(Boolean).join(" · ").slice(0,60);
  if(review.rating!==null){
    $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
-   $("#showRating").checked=true;
- }else $("#showRating").checked=false;
- $("#reviewText").value=(review.text||"").slice(0,360);$("#showReview").checked=!!review.text;
- $("#charCount").textContent=$("#reviewText").value.length+" / 360";render();
+ }
+ $("#reviewText").value=review.text||"";$("#showReview").checked=!!review.text;
+ const who=normalizeSZ($("#serializdUsername").value);if(who)$("#reviewerName").value=who;
+ render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
  lastReviewMediaHint="tv";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
@@ -365,6 +613,22 @@ $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client
 $("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("Configure Supabase first.",true);return}const email=val("#authEmail");if(!email){setMsg("Enter your email first.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("If the account exists, a recovery email has been requested.")}catch(e){setMsg(e.message||"Could not request recovery.",true)}});
 $("#resetForm").addEventListener("submit",async e=>{e.preventDefault();const el=$("#resetMessage");if(!client){el.textContent="Configure Supabase first.";return}try{const{error}=await client.auth.updateUser({password:$("#newPassword").value});if(error)throw error;el.textContent="Password updated."}catch(e){el.textContent=e.message||"Could not update password.";el.classList.add("error")}});
 $("#signOut").addEventListener("click",async()=>{if(!client)return;const{error}=await client.auth.signOut();if(error){$("#accountLabel").textContent="Could not sign out.";return}updateAuth(null)});
+window.addEventListener("resize",()=>{if(!$("#tmdbPosterOptionsWrap").hidden)updateCarouselUI(false)});
+
+/* Small debug/verification hook (no UI) */
+window.FramixStudio={
+  paint,
+  setArtwork(posterSrc,backdropSrc){
+    const load=src=>new Promise((resolve,reject)=>{const i=new Image();i.crossOrigin="anonymous";i.onload=()=>resolve(i);i.onerror=()=>reject(Error("load failed"));i.src=src});
+    return Promise.all([posterSrc?load(posterSrc):Promise.resolve(null),backdropSrc?load(backdropSrc):Promise.resolve(null)])
+      .then(([p,b])=>{if(p)poster=p;if(b)back=b;paint()}).catch(e=>console.warn("setArtwork failed",e));
+  }
+};
+
+/* ---------- Init ---------- */
+const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
+const savedProxy=safeStore.get("framix.proxy");if(savedProxy)$("#proxyUrl").value=savedProxy;
+buildStyleChips();
 const lb=safeStore.get("framix.lb"),sz=safeStore.get("framix.sz");if(lb)$("#lbUsername").value=lb;if(sz){$("#serializdUsername").value=sz;$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(sz);$("#serializdProfileLink").textContent="Open @"+sz+" on Serializd ↗";$("#serializdProfileLink").hidden=false}
-$("#charCount").textContent=$("#reviewText").value.length+" / 360";render();configureAuth();
+paint();configureAuth();
 })();
