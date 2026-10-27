@@ -580,6 +580,7 @@ $("#downloadCard").addEventListener("click",()=>{
   },"image/png");
 });
 $("#letterboxdForm").addEventListener("submit",loadLB);
+$("#lbLoad").addEventListener("click",e=>{e.preventDefault();void loadLB({preventDefault(){}})});
 $("#lbReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-review-index]");if(!button)return;
  const review=letterboxdReviews[Number(button.dataset.reviewIndex)];if(!review)return;
@@ -595,6 +596,7 @@ $("#lbReviews").addEventListener("click",event=>{
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
+$("#serializdLoad").addEventListener("click",e=>{e.preventDefault();void loadSZ({preventDefault(){}})});
 $("#serializdReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-serializd-index]");if(!button)return;
  const review=serializdReviews[Number(button.dataset.serializdIndex)];if(!review)return;
