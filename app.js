@@ -424,7 +424,8 @@ function drawPosterRot(c,w,y,deg){if(!poster)return y;const h=w*poster.height/po
 function drawPolaroid(c,w,y){if(!poster)return y;const p=26,iw=w-p*2,ih=iw*poster.height/poster.width,h=ih+p*2+50,x=(W-w)/2;
   c.save();c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=50;c.shadowOffsetY=20;rr(c,x,y,w,h,10);c.fillStyle="#f4f1ea";c.fill();c.restore();
   c.drawImage(poster,x+p,y+p,iw,ih);return y+h}
-const reviewText=()=>$("#showReview").checked?val("#reviewText"):"";
+const reviewText=()=>$("#showReview")?.checked?val("#reviewText"):"";
+const darkenAmount=()=>{const input=$("#darken"),n=Number(input?.value);return Number.isFinite(n)?n:45};
 function drawReview(c,y,maxY,color){
   const text=reviewText();if(!text)return y;
   c.textBaseline="top";c.textAlign="center";c.direction=/[\u0600-\u06FF]/.test(text)?"rtl":"ltr";
@@ -443,7 +444,7 @@ function drawReview(c,y,maxY,color){
   return y+lines.length*lh+30;
 }
 function drawText(c,y,starsFirst,hasRev){
-  const tc=$("#textColor").value,sc=$("#starColor").value,r=parseFloat($("#rating").value);
+  const tc=$("#textColor")?.value||"#f5f1e8",sc=$("#starColor")?.value||"#d7b46a",r=parseFloat($("#rating").value)||0;
   const ts=hasRev?64:78,ss=hasRev?84:104;
   c.textAlign="center";c.textBaseline="top";
   const stars=()=>{c.font="bold "+ss+"px system-ui,sans-serif";c.fillStyle=sc;
@@ -451,8 +452,8 @@ function drawText(c,y,starsFirst,hasRev){
   const title=()=>{c.font="bold "+ts+"px system-ui,sans-serif";c.fillStyle=tc;
     wrap($("#filmTitle").value||"Untitled film",900).forEach(l=>{c.fillText(l,W/2,y);y+=ts*1.22});y+=6;
     c.font=(hasRev?32:38)+"px system-ui,sans-serif";c.globalAlpha=.9;c.fillText($("#filmYear").value,W/2,y);c.globalAlpha=1;y+=hasRev?56:70};
-  const who=yy=>{if(!$("#showReviewer").checked||!$("#reviewerName").value.trim())return;
-    const a="Reviewed by ",b=$("#reviewerName").value.trim();c.font="28px system-ui,sans-serif";const wa=c.measureText(a).width;
+  const who=yy=>{const show=$("#showReviewer"),name=$("#reviewerName");if(!show?.checked||!name?.value?.trim())return;
+    const a="Reviewed by ",b=name.value.trim();c.font="28px system-ui,sans-serif";const wa=c.measureText(a).width;
     c.font="bold 28px system-ui,sans-serif";const wb=c.measureText(b).width,x=(W-wa-wb)/2;
     c.textAlign="left";c.fillStyle=tc;c.globalAlpha=.85;c.font="28px system-ui,sans-serif";c.fillText(a,x,yy);
     c.font="bold 28px system-ui,sans-serif";c.fillText(b,x+wa,yy);c.globalAlpha=1;c.textAlign="center"};
@@ -466,7 +467,7 @@ function paint(){
   const solid=cardStyle==="banner"||cardStyle==="cinema";
   if(cardStyle==="color"){const gg=ctx.createLinearGradient(0,0,0,H);gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,"#0b0b0c");ctx.fillStyle=gg;ctx.fillRect(0,0,W,H)}
   else if(bg&&!solid){if(cardStyle==="blur"||cardStyle==="glass")blurred(ctx,poster||bg);else if(cardStyle==="fullposter")cover(ctx,poster||bg,0,0,W,H);else cover(ctx,bg,0,0,W,H)}
-  ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100)+")";ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100)+")";ctx.fillRect(0,0,W,H);
   const g=ctx.createLinearGradient(0,H*.4,0,H);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.92)");ctx.fillStyle=g;ctx.fillRect(0,H*.4,W,H*.6);
   let e;
   if(cardStyle==="medium"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,430,330);drawText(ctx,e+(hr?50:90),false,hr)}
@@ -477,11 +478,11 @@ function paint(){
   else if(cardStyle==="tilt"){e=hr?drawPosterRot(ctx,330,190,-5):drawPosterRot(ctx,470,330,-5);drawText(ctx,e+(hr?50:90),false,hr)}
   else if(cardStyle==="polaroid"){e=hr?drawPolaroid(ctx,380,140):drawPolaroid(ctx,560,240);drawText(ctx,e+(hr?50:80),false,hr)}
   else if(cardStyle==="banner"){const bh=780,bi=back||poster;
-    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,0,W,bh);ctx.clip();cover(ctx,bi,0,0,W,bh);ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100*.6)+")";ctx.fillRect(0,0,W,bh);ctx.restore()}
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,0,W,bh);ctx.clip();cover(ctx,bi,0,0,W,bh);ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100*.6)+")";ctx.fillRect(0,0,W,bh);ctx.restore()}
     const fg=ctx.createLinearGradient(0,bh-320,0,bh);fg.addColorStop(0,"rgba(11,11,12,0)");fg.addColorStop(1,"rgba(11,11,12,1)");ctx.fillStyle=fg;ctx.fillRect(0,bh-320,W,320);
     e=hr?drawPoster(ctx,300,470):drawPoster(ctx,400,500);drawText(ctx,e+(hr?50:80),false,hr)}
   else if(cardStyle==="cinema"){const by=hr?120:340,bh2=hr?560:607,bi=back||poster;
-    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,by,W,bh2);ctx.clip();cover(ctx,bi,0,by,W,bh2);ctx.fillStyle="rgba(0,0,0,"+($("#darken").value/100*.5)+")";ctx.fillRect(0,by,W,bh2);ctx.restore()}
+    if(bi){ctx.save();ctx.beginPath();ctx.rect(0,by,W,bh2);ctx.clip();cover(ctx,bi,0,by,W,bh2);ctx.fillStyle="rgba(0,0,0,"+(darkenAmount()/100*.5)+")";ctx.fillRect(0,by,W,bh2);ctx.restore()}
     ctx.fillStyle="rgba(255,255,255,.85)";ctx.fillRect(0,by-6,W,3);ctx.fillRect(0,by+bh2+3,W,3);
     drawText(ctx,by+bh2+70,false,hr)}
   else if(cardStyle==="glass"){const py=hr?90:240,ph=hr?H-180:1420;
@@ -494,7 +495,7 @@ function paint(){
 }
 function render(){clearTimeout(render.t);render.t=setTimeout(paint,60)}
 function buildStyleChips(){
-  const wrap=$("#styleChips");wrap.replaceChildren();
+  const wrap=$("#styleChips");if(!wrap)return;wrap.replaceChildren();
   CARD_STYLES.forEach(([key,label])=>{
     const b=document.createElement("button");b.type="button";b.className="style-chip"+(key===cardStyle?" is-selected":"");b.textContent=label;
     b.addEventListener("click",()=>{cardStyle=key;wrap.querySelectorAll(".style-chip").forEach(x=>x.classList.toggle("is-selected",x===b));paint()});
@@ -511,10 +512,10 @@ function plain(raw){const d=new DOMParser().parseFromString("<!doctype html><htm
 function parseRSS(text,username){const xml=new DOMParser().parseFromString(text,"application/xml");if(xml.querySelector("parsererror"))throw Error("Could not parse the public RSS feed.");return[...xml.getElementsByTagName("item")].map(item=>{const guid=rssTag(item,"guid"),title=rssTag(item,"filmTitle"),raw=rssTag(item,"memberRating"),rating=raw!==""&&Number.isFinite(+raw)?+raw:null,link=rssTag(item,"link");let url="https://letterboxd.com/"+encodeURIComponent(username)+"/";try{const u=new URL(link);if(u.protocol==="https:"&&u.hostname==="letterboxd.com")url=u.href}catch{}return{guid,title,year:rssTag(item,"filmYear"),date:rssTag(item,"watchedDate")||rssTag(item,"pubDate").slice(0,10),rating,text:plain(rssTag(item,"description")),url}}).filter(x=>/letterboxd-review-/i.test(x.guid)&&x.title).slice(0,12)}
 async function relay(url,valid){let last;const enc=encodeURIComponent;const targets=["https://api.allorigins.win/raw?url="+enc(url),"https://api.codetabs.com/v1/proxy/?quest="+enc(url),"https://corsproxy.io/?url="+enc(url),"https://proxy.cors.dev/"+url];for(const target of targets){try{const c=new AbortController(),timer=setTimeout(()=>c.abort(),12000);try{const r=await fetch(target,{credentials:"omit",signal:c.signal});if(!r.ok)throw Error("HTTP "+r.status);const body=await r.text();if(valid&&!valid(body))throw Error("Unexpected response from relay");return body}finally{clearTimeout(timer)}}catch(e){last=e}}throw last||Error("All public relays failed")}
 function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="lb-empty";p.textContent="No recent written reviews found. Check your public profile or use the poster editor manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="lb-review-card";const meta=document.createElement("div");meta.className="lb-review-meta";const date=document.createElement("span");date.textContent=r.date||"PUBLIC REVIEW";const stars=document.createElement("span");stars.className="lb-stars";stars.textContent=r.rating===null?"UNRATED":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));meta.append(date,stars);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="lb-year";year.textContent=r.year||"LETTERBOXD";const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="lb-review-actions";const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Letterboxd ↗";const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,excerpt,actions);grid.append(card)})}
-async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading public reviews…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent reviews for @"+username+".":"No written reviews found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed. Check the username or retry later; free public relays can be unavailable.","error");console.warn(err)}finally{button.disabled=false}}
+async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading public reviews…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent reviews for @"+username+".":"No written reviews found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed: "+(err?.message||"public relay unavailable")+". Check the username and retry.","error");console.warn("Letterboxd import failed",err)}finally{button.disabled=false}}
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
 function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No public diary entries were returned. The profile link is saved; this unofficial endpoint may require a session. You can still create posters manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
-async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1",x=>{try{const d=JSON.parse(x);return Array.isArray(d)||!!(d&&typeof d==="object")}catch{return false}}),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);status("#serializdStatus","Profile shortcut saved. Serializd's unofficial public endpoint may be unavailable or require a session; no password was collected.","error");console.warn(err)}finally{button.disabled=false}}
+async function loadSZ(e){e.preventDefault();const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}button.disabled=true;status("#serializdStatus","Checking public diary…");safeStore.set("framix.sz",username);$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);$("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";$("#serializdProfileLink").hidden=false;try{const text=await relay("https://serializd.onrender.com/api/user/"+encodeURIComponent(username)+"/diary?page=1",x=>{try{const d=JSON.parse(x);return Array.isArray(d)||!!(d&&typeof d==="object")}catch{return false}}),data=JSON.parse(text),rows=Array.isArray(data)?data:(data.reviews||data.items||data.diary||data.entries||data.results||data.data?.reviews||data.data?.items||data.data?.diary||[]);serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);renderSZ(serializdReviews);status("#serializdStatus",serializdReviews.length?"Loaded "+serializdReviews.length+" public diary entries.":"The profile link works, but no public diary entries were returned by the available endpoint. Serializd does not expose a stable supported API for all profiles; posters still work normally.",serializdReviews.length?"success":"error")}catch(err){serializdReviews=[];renderSZ([]);status("#serializdStatus","Could not load the diary: "+(err?.message||"public relay unavailable")+". The profile link is still available; no password was collected.","error");console.warn("Serializd import failed",err)}finally{button.disabled=false}}
 async function fetchImage(url){
   let lastError=null;
   const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
@@ -539,31 +540,12 @@ function updateAuth(session){const email=session?.user?.email;$("#accountLabel")
 function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.supabaseAnonKey||!window.supabase?.createClient){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}try{client=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey)}catch(e){console.warn(e)}if(!client){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}$("#authFields").hidden=false;$("#authSetupNote").hidden=true;client.auth.getSession().then(({data})=>updateAuth(data?.session||null)).catch(()=>updateAuth(null));client.auth.onAuthStateChange((_e,session)=>updateAuth(session));if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery")$("#resetDialog").showModal()}
 
 /* ---------- Wiring ---------- */
-$("#lbFetchAll").addEventListener("click",async()=>{
-  const button=$("#lbFetchAll");button.disabled=true;
-  try{
-    setTMDBStatus("Searching TMDB for the film…");
-    await searchLetterboxdLink();
-    const chosen=lbMatches.find(r=>String(r.id)===$("#filmSelect").value)||lbMatches[0];
-    await loadTMDBTitle(chosen,{automatic:true});
-    setTMDBStatus("Fetching the review and rating from Letterboxd…");
-    const info=await fetchReview();
-    setTMDBStatus("Loaded ✓ poster, backdrop, review and rating ("+info+")","success");
-  }catch(error){setTMDBStatus(error.message||"Could not load that review.","error");console.warn(error)}
-  finally{button.disabled=false}
-});
-$("#lbReviewLink").addEventListener("input",()=>{lbLinkSearched=""});
 $("#tmdbSaveKey").addEventListener("click",()=>{
  const key=val("#tmdbKey");
  if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
  safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;
  setTMDBStatus("TMDB key saved locally. Looking up the current film/show…","success");
  void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
-});
-$("#proxySave").addEventListener("click",()=>{
- const p=val("#proxyUrl");
- safeStore.set("framix.proxy",p);
- setTMDBStatus(p?"Custom proxy saved locally — it will be tried first for review fetching.":"Custom proxy cleared.");
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);
 $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
@@ -590,7 +572,7 @@ $("#lbReviews").addEventListener("click",event=>{
    $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
  }
  $("#reviewText").value=review.text||"";$("#showReview").checked=!!review.text;
- const who=normalizeLB($("#lbUsername").value);if(who)$("#reviewerName").value=who;
+ const who=normalizeLB($("#lbUsername").value),nameField=$("#reviewerName");if(who&&nameField)nameField.value=who;
  render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
@@ -606,7 +588,7 @@ $("#serializdReviews").addEventListener("click",event=>{
    $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
  }
  $("#reviewText").value=review.text||"";$("#showReview").checked=!!review.text;
- const who=normalizeSZ($("#serializdUsername").value);if(who)$("#reviewerName").value=who;
+ const who=normalizeSZ($("#serializdUsername").value),nameField=$("#reviewerName");if(who&&nameField)nameField.value=who;
  render();
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
  lastReviewMediaHint="tv";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
@@ -630,7 +612,7 @@ window.FramixStudio={
 
 /* ---------- Init ---------- */
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
-const savedProxy=safeStore.get("framix.proxy");if(savedProxy)$("#proxyUrl").value=savedProxy;
+const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField)proxyField.value=savedProxy;
 buildStyleChips();
 const lb=safeStore.get("framix.lb"),sz=safeStore.get("framix.sz");if(lb)$("#lbUsername").value=lb;if(sz){$("#serializdUsername").value=sz;$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(sz);$("#serializdProfileLink").textContent="Open @"+sz+" on Serializd ↗";$("#serializdProfileLink").hidden=false}
 paint();configureAuth();
