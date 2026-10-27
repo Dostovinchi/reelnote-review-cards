@@ -37,7 +37,7 @@ function activePalette(){
 function syncThemeOptions(repaint=true){
   const family=$("#themeFamily")?.value||"general";
   const choices=THEME_PALETTES[family]||THEME_PALETTES.general;
-  $('input[name="theme"]').forEach(input=>{
+  $$('input[name="theme"]').forEach(input=>{
     const palette=choices[input.value];if(!palette)return;
     const label=input.closest("label");
     const swatch=label?.querySelector(".swatch"),name=label?.querySelector("b");
@@ -608,7 +608,7 @@ $("#tmdbSaveKey").addEventListener("click",()=>{
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);
  $("#themeFamily").addEventListener("change",()=>syncThemeOptions());
- $('input[name="theme"]').forEach(input=>input.addEventListener("change",()=>syncThemeOptions()));
+ $$('input[name="theme"]').forEach(input=>input.addEventListener("change",()=>syncThemeOptions()));
  $("#posterLayout").addEventListener("change",()=>paint());
 $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 ["#filmTitle","#filmYear","#rating","#reviewerName","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
