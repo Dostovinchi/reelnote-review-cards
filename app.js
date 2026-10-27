@@ -613,7 +613,7 @@ function buildStyleChips(){
 }
 
 /* ---------- Diary connections (public RSS / diary endpoints) ---------- */
-let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie";
+let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie",serializdToken="";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function normalizeSZ(input){let s=String(input||"").trim();if(/^https?:\/\//i.test(s)){try{const u=new URL(s);if(!/(^|\.)serializd\.com$/i.test(u.hostname))return"";const parts=u.pathname.split("/").filter(Boolean);const i=parts.findIndex(x=>["user","users"].includes(x.toLowerCase()));s=i>=0?parts[i+1]:(parts[parts.length-1]||"")}catch{return""}}s=s.replace(/^@/,"").replace(/\/$/,"");return /^[A-Za-z0-9_-]{2,40}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
@@ -623,7 +623,7 @@ async function relay(url,valid){let last;const enc=encodeURIComponent;const targ
 function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="lb-empty";p.textContent="No recent written reviews found. Check your public profile or use the poster editor manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="lb-review-card";const meta=document.createElement("div");meta.className="lb-review-meta";const date=document.createElement("span");date.textContent=r.date||"PUBLIC REVIEW";const stars=document.createElement("span");stars.className="lb-stars";stars.textContent=r.rating===null?"UNRATED":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));meta.append(date,stars);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="lb-year";year.textContent=r.year||"LETTERBOXD";const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="lb-review-actions";const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Letterboxd ↗";const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,excerpt,actions);grid.append(card)})}
 async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading public reviews…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent reviews for @"+username+".":"No written reviews found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed: "+(err?.message||"public relay unavailable")+". Check the username and retry.","error");console.warn("Letterboxd import failed",err)}finally{button.disabled=false}}
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
-function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No public diary entries were returned. The profile link is saved; this unofficial endpoint may require a session. You can still create posters manually.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
+function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No diary entries loaded yet. Sign in with Serializd below, or choose a JSON/CSV export from your device.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
 function serializdRows(data){
   if(Array.isArray(data))return data;
   if(!data||typeof data!=="object")return null;
@@ -691,33 +691,165 @@ async function fetchSerializdDiary(username){
   }
   throw Error("Could not reach a public Serializd diary endpoint. "+(lastError?.message||"No endpoint returned usable diary data."));
 }
+async function loginSerializdDirect(email,password){
+  /* Credentials are posted only to Serializd's API host, never through a CORS proxy. */
+  const response=await fetch("https://serializd.onrender.com/api/login",{
+    method:"POST",credentials:"omit",
+    headers:{"accept":"application/json, text/plain, */*","content-type":"application/json","x-requested-with":"serializd_vercel"},
+    body:JSON.stringify({email,password})
+  });
+  const raw=await response.text();
+  let data={};try{data=JSON.parse(raw)}catch{}
+  if(!response.ok)throw Error("Serializd login failed (HTTP "+response.status+"). Check your account details.");
+  if(!data.token)throw Error(data.message||data.error||"Serializd did not return a login token.");
+  return data;
+}
+async function fetchSerializdDiaryDirect(username,token=serializdToken){
+  if(!token)throw Error("Sign in to Serializd first.");
+  const user=encodeURIComponent(username),base="https://serializd.onrender.com/api/user/"+user+"/";
+  const endpoints=[
+    base+"diary?page=1",
+    base+"reviewspage_v3?sort_by=backdate_desc&include_ratings=true",
+    base+"reviews?sort_by=backdate_desc&include_ratings=true"
+  ];
+  let lastError=null;
+  for(const endpoint of endpoints){
+    try{
+      const response=await fetch(endpoint,{credentials:"omit",headers:{
+        "accept":"application/json, text/plain, */*",
+        "x-requested-with":"serializd_vercel",
+        "authorization":"Bearer "+token
+      }});
+      const raw=await response.text();
+      if(response.status===401)throw Error("Serializd rejected the login token (HTTP 401). Sign out in Serializd and try again.");
+      if(!response.ok)throw Error("HTTP "+response.status);
+      let data;try{data=JSON.parse(raw)}catch{throw Error("Serializd returned invalid JSON.")}
+      const rows=serializdRows(data);
+      if(Array.isArray(rows))return rows;
+      throw Error("Serializd returned an unrecognised diary format.");
+    }catch(error){
+      lastError=error;
+      if(/rejected the login token/.test(String(error?.message||error)))throw error;
+      console.warn("Authenticated Serializd endpoint failed",endpoint,error);
+    }
+  }
+  if(lastError&&/Failed to fetch|CORS|NetworkError/i.test(String(lastError.message||lastError))){
+    throw Error("The browser could not connect directly to Serializd's API (likely a CORS restriction). No password was sent through a proxy. Use the JSON/CSV import below instead.");
+  }
+  throw lastError||Error("Could not load the Serializd diary.");
+}
+function showSerializdRows(rows,username,source="Serializd"){
+  serializdReviews=(rows||[]).map(item=>typeof item==="string"?{title:item,text:"",rating:null,date:"",year:"",url:""}:serialEntry(item)).filter(x=>x.title).slice(0,12);
+  renderSZ(serializdReviews);
+  const message=serializdReviews.length
+    ?"Loaded "+serializdReviews.length+" diary entries"+(username?" for @"+username:"")+" from "+source+"."
+    :"The data was read, but no titled diary entries were found. Try a diary export rather than a watchlist.";
+  status("#serializdStatus",message,serializdReviews.length?"success":"error");
+}
+async function importSerializdFile(file){
+  if(!file)return;
+  if(file.size>15*1024*1024){status("#serializdStatus","That file is over 15 MB. Choose a smaller JSON or CSV export.","error");return}
+  status("#serializdStatus","Reading your Serializd export locally…");
+  try{
+    const text=await file.text();
+    let rows=[];
+    if(/\.json$/i.test(file.name)||/application\/json/i.test(file.type)){
+      const data=JSON.parse(text);
+      rows=serializdRows(data)||[];
+      if(!rows.length&&Array.isArray(data?.shows))rows=data.shows;
+      if(!rows.length&&Array.isArray(data?.export?.diary))rows=data.export.diary;
+      if(!rows.length&&Array.isArray(data?.data?.shows))rows=data.data.shows;
+    }else{
+      const table=parseCSV(text);
+      if(table.length<2)throw Error("CSV file has no diary rows.");
+      const headers=table[0].map(normalizeCSVHeader);
+      const pick=(row,names)=>{const i=headers.findIndex(h=>names.includes(h));return i>=0?row[i]||"":""};
+      rows=table.slice(1).filter(row=>row.some(value=>String(value||"").trim())).map(row=>({
+        showName:pick(row,["showname","showtitle","series","show","name","title","tvshow"]),
+        reviewText:pick(row,["reviewtext","review","reviewcontent","note","notes","text","comment","content"]),
+        rating:pick(row,["rating","userrating","score","stars"]),
+        dateAdded:pick(row,["dateadded","watcheddate","loggeddate","date","createdat","watched"]),
+        year:pick(row,["year","releaseyear","premieredate","firstairdate"]),
+        url:pick(row,["url","diaryurl","reviewurl","serializdurl"])
+      }));
+    }
+    if(!Array.isArray(rows)||!rows.length)throw Error("No diary rows were found in that file. Use the diary JSON/CSV, not a settings or watchlist file.");
+    showSerializdRows(rows,normalizeSZ($("#serializdUsername").value),"your file");
+  }catch(error){
+    status("#serializdStatus","Could not import that file: "+(error?.message||"unsupported file format")+". Select a Serializd diary JSON or CSV export.","error");
+    console.warn("Serializd file import failed",error);
+  }
+}
+function normalizeCSVHeader(value){return String(value||"").replace(/^\uFEFF/,"").trim().toLowerCase().replace(/[^a-z0-9]/g,"")}
+function parseCSV(text){
+  const rows=[];let row=[],cell="",quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(quoted&&text[i+1]==='"'){cell+='"';i++}
+      else quoted=!quoted;
+    }else if(ch===","&&!quoted){row.push(cell);cell=""}
+    else if((ch==="\n"||ch==="\r")&&!quoted){
+      if(ch==="\r"&&text[i+1]==="\n")i++;
+      row.push(cell);rows.push(row);row=[];cell="";
+    }else cell+=ch;
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row)}
+  return rows;
+}
 async function loadSZ(e){
   e.preventDefault();
   const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");
   if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}
-  button.disabled=true;status("#serializdStatus","Trying public Serializd diary endpoints…");
+  button.disabled=true;status("#serializdStatus",serializdToken?"Loading diary with your current Serializd session…":"Trying public Serializd endpoints…");
   safeStore.set("framix.sz",username);
   $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);
   $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
   $("#serializdProfileLink").hidden=false;
   try{
-    const rows=await fetchSerializdDiary(username);
-    serializdReviews=rows.map(serialEntry).filter(x=>x.title).slice(0,8);
-    renderSZ(serializdReviews);
-    status("#serializdStatus",serializdReviews.length
-      ?"Loaded "+serializdReviews.length+" public diary entries."
-      :"The public diary endpoint responded, but no diary entries were returned for @"+username+".",
-      serializdReviews.length?"success":"error");
+    const rows=serializdToken?await fetchSerializdDiaryDirect(username):await fetchSerializdDiary(username);
+    showSerializdRows(rows,username,serializdToken?"your Serializd session":"public API");
   }catch(err){
     serializdReviews=[];renderSZ([]);
     const reason=String(err?.message||"");
     const message=/401|unauthori[sz]ed/i.test(reason)
-      ?"Serializd rejected anonymous diary access (HTTP 401). This page will not ask for or send your password to a third-party relay."
-      :"Could not load the public diary: "+(reason||"no public endpoint responded")+". The profile link remains available.";
+      ?"Serializd rejected anonymous diary access (HTTP 401). Open “Sign in to Serializd” below, or import a JSON/CSV export."
+      :"Could not load the public diary: "+(reason||"no public endpoint responded")+". Open “Sign in to Serializd” below, or import a JSON/CSV export.";
     status("#serializdStatus",message,"error");
     console.warn("Serializd import failed",err);
   }finally{button.disabled=false}
 }
+async function signInAndLoadSerializd(e){
+  e.preventDefault();
+  const email=$("#serializdEmail").value.trim(),password=$("#serializdPassword"),username=normalizeSZ($("#serializdUsername").value),button=$("#serializdAuthLoad");
+  if(!username){status("#serializdStatus","Enter your Serializd username or profile URL above first.","error");$("#serializdUsername").focus();return}
+  if(!email||!password.value){status("#serializdStatus","Enter your Serializd email and password to sign in.","error");return}
+  button.disabled=true;status("#serializdStatus","Signing in directly with Serializd…");
+  let loginData;
+  try{
+    loginData=await loginSerializdDirect(email,password.value);
+    serializdToken=loginData.token;
+    password.value="";
+    const signedInUser=normalizeSZ(loginData.username||username)||username;
+    $("#serializdUsername").value=signedInUser;
+    safeStore.set("framix.sz",signedInUser);
+    $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(signedInUser);
+    $("#serializdProfileLink").textContent="Open @"+signedInUser+" on Serializd ↗";
+    $("#serializdProfileLink").hidden=false;
+    const rows=await fetchSerializdDiaryDirect(signedInUser,serializdToken);
+    showSerializdRows(rows,signedInUser,"your Serializd session");
+  }catch(error){
+    const message=/Failed to fetch|CORS|NetworkError/i.test(String(error?.message||""))
+      ?"The browser could not connect directly to Serializd's API (often a CORS restriction). Your password was not sent through any proxy. Use the JSON/CSV import option below."
+      :(error?.message||"Serializd sign-in failed. Check your email and password.");
+    status("#serializdStatus",message,"error");
+    console.warn("Serializd sign-in/import failed",error);
+  }finally{
+    password.value="";
+    button.disabled=false;
+  }
+}
+
 async function fetchImage(url){
   let lastError=null;
   const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
@@ -790,6 +922,9 @@ $("#lbReviews").addEventListener("click",event=>{
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
+ $("#serializdAuthForm").addEventListener("submit",signInAndLoadSerializd);
+ $("#serializdImportFile").addEventListener("change",event=>{void importSerializdFile(event.target.files?.[0]);event.target.value="";});
+
 $("#serializdLoad").addEventListener("click",e=>{e.preventDefault();void loadSZ({preventDefault(){}})});
 $("#serializdReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-serializd-index]");if(!button)return;
