@@ -634,6 +634,29 @@ function serializdRows(data){
   ];
   return candidates.find(Array.isArray)??null;
 }
+async function relaySerializd(url,valid){
+  const proxy=new URL("https://corsproxy.io/");
+  proxy.searchParams.set("url",url);
+  [
+    "x-requested-with:serializd_vercel",
+    "accept:application/json, text/plain, */*",
+    "referer:https://www.serializd.com/",
+    "user-agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36"
+  ].forEach(header=>proxy.searchParams.append("reqHeaders",header));
+  try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),14000);
+    try{
+      const response=await fetch(proxy.href,{credentials:"omit",signal:controller.signal});
+      const body=await response.text();
+      if(!response.ok)throw Error("HTTP "+response.status);
+      if(valid&&!valid(body))throw Error("Unexpected response from header-aware relay");
+      return body;
+    }finally{clearTimeout(timer)}
+  }catch(error){
+    console.warn("Serializd header-aware relay failed; trying generic public relays",error);
+  }
+  return relay(url,valid);
+}
 async function fetchSerializdDiary(username){
   const user=encodeURIComponent(username);
   const api="https://serializd.onrender.com/api/user/"+user+"/";
@@ -648,7 +671,7 @@ async function fetchSerializdDiary(username){
   let lastError=null,authRejected=false;
   for(const endpoint of endpoints){
     try{
-      const body=await relay(endpoint,text=>{
+      const body=await relaySerializd(endpoint,text=>{
         try{return Array.isArray(serializdRows(JSON.parse(text)))}catch(error){
           if(/401|unauthori[sz]ed|authentication required|token required/i.test(String(error?.message||error)))authRejected=true;
           return false;
