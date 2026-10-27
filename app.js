@@ -636,27 +636,35 @@ function serializdRows(data){
 }
 async function fetchSerializdDiary(username){
   const user=encodeURIComponent(username);
+  const api="https://serializd.onrender.com/api/user/"+user+"/";
+  /* Match the endpoint fallback sequence used by current open-source Serializd clients. */
   const endpoints=[
-    "https://www.serializd.com/api/user/"+user+"/diary?page=1",
-    "https://www.serializd.onrender.com/api/user/"+user+"/diary?page=1",
-    "https://serializd.onrender.com/api/user/"+user+"/diary?page=1"
+    api+"reviewspage_v3?sort_by=backdate_desc&include_ratings=true",
+    api+"reviewspage_v3",
+    api+"reviews?sort_by=backdate_desc&include_ratings=true",
+    api+"reviews",
+    api+"diary?page=1"
   ];
   let lastError=null,authRejected=false;
   for(const endpoint of endpoints){
     try{
       const body=await relay(endpoint,text=>{
-        try{return Array.isArray(serializdRows(JSON.parse(text)))}catch(error){if(/401|unauthori[sz]ed|authentication required|token required/i.test(String(error?.message||error)))authRejected=true;return false}
+        try{return Array.isArray(serializdRows(JSON.parse(text)))}catch(error){
+          if(/401|unauthori[sz]ed|authentication required|token required/i.test(String(error?.message||error)))authRejected=true;
+          return false;
+        }
       });
       const rows=serializdRows(JSON.parse(body));
       if(!Array.isArray(rows))throw Error("Serializd returned an unsupported diary response.");
       return rows;
     }catch(error){
       lastError=error;
+      if(/401|unauthori[sz]ed/i.test(String(error?.message||error)))authRejected=true;
       console.warn("Serializd endpoint failed",endpoint,error);
     }
   }
-  if(authRejected||(lastError&&/401|unauthori[sz]ed/i.test(String(lastError.message||lastError)))){
-    throw Error("Public diary requests were rejected (HTTP 401). Serializd's current API may require a session.");
+  if(authRejected){
+    throw Error("Serializd rejected anonymous diary access (HTTP 401) across its review and diary endpoints.");
   }
   throw Error("Could not reach a public Serializd diary endpoint. "+(lastError?.message||"No endpoint returned usable diary data."));
 }
