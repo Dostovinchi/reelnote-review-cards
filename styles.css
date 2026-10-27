@@ -205,3 +205,11 @@ footer>a:last-child{font-size:10px;color:var(--muted)}
 #tmdbPosters.poster-carousel .poster-slide{flex:0 0 100%;width:100%;min-width:100%;height:100%;box-sizing:border-box}
 #tmdbPosters.poster-carousel .poster-carousel-nav{position:absolute}
 @media(max-width:720px){#tmdbPosters.poster-carousel .poster-carousel-viewport{height:190px}}
+
+
+/* Extra theme palette and poster composition selector */
+.composition-help{margin:7px 0 12px;color:var(--muted);font-size:10px;line-height:1.6}
+#cardComposition{width:100%}
+#themeSwatches .swatch{background-size:cover;transition:transform .18s,border-color .18s}
+#themeSwatches label:hover .swatch{transform:translateY(-1px)}
+#themeSwatches label b{text-transform:capitalize}
