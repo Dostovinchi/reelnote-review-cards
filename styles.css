@@ -213,3 +213,17 @@ footer>a:last-child{font-size:10px;color:var(--muted)}
 #themeSwatches .swatch{background-size:cover;transition:transform .18s,border-color .18s}
 #themeSwatches label:hover .swatch{transform:translateY(-1px)}
 #themeSwatches label b{text-transform:capitalize}
+
+
+/* Serializd authenticated import + local file fallback */
+.serializd-auth{margin-top:15px;border:1px solid #304055;padding:12px 13px;background:#0b1420}
+.serializd-auth>summary{cursor:pointer;color:#c6a5ee;font-size:11px;font-weight:700;line-height:1.7}
+.serializd-auth>p,.serializd-file-import>p{font-size:10px;line-height:1.7;color:#9eacbf;margin:9px 0}
+.serializd-auth-form{display:grid;gap:7px}
+.serializd-auth-form>label,.serializd-file-import>label{display:block;margin:8px 0 0;color:#a6b1bf;font:9px var(--mono);letter-spacing:1.1px}
+.serializd-auth-form>input,.serializd-file-import>input[type=file]{width:100%;min-width:0;background:#0f1925;border:1px solid #2b3a4d;color:var(--ink);padding:11px 12px;border-radius:0;outline:none;font:12px var(--sans)}
+.serializd-auth-form>input:focus{border-color:#c6a5ee}
+.serializd-auth-form .button{width:100%;margin-top:6px;white-space:normal}
+.serializd-file-import{margin-top:14px;padding-top:12px;border-top:1px solid #263648}
+.serializd-file-import>input[type=file]{margin-top:8px;font-size:10px}
+.serializd-file-import>input[type=file]::file-selector-button{margin-right:10px;padding:7px 10px;border:1px solid #40516a;background:#172536;color:#e7edf7;cursor:pointer}
