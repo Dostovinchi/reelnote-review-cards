@@ -289,9 +289,11 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
 /* ---------- Letterboxd review link → TMDB search ---------- */
 function populateFilmSelect(items){
   lbMatches=items;
-  const select=$("#filmSelect");select.replaceChildren();
+  const select=$("#filmSelect"),wrap=$("#filmSelectWrap");
+  if(!select||!wrap)return; /* Older link-import UI is not present in the current page. */
+  select.replaceChildren();
   items.forEach(r=>{const o=document.createElement("option");o.value=String(r.id);o.textContent=r.title+" ("+String(r.release_date||"").slice(0,4)+")";select.append(o)});
-  $("#filmSelectWrap").hidden=!items.length;
+  wrap.hidden=!items.length;
 }
 async function searchLetterboxdLink(){
   const link=$("#lbReviewLink").value.trim();
