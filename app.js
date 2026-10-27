@@ -562,7 +562,7 @@ function paint(){
     drawText(ctx,y+h+68,false,hr);
   }
   else if(style==="ticket"){
-    ctx.save();rr(ctx,70,92,W-140,H-184,34);ctx.lineWidth=4;ctx.strokeStyle=palette.accent+"aa";ctx.stroke();ctx.setLineDash([10,14]);ctx.beginPath();ctx.moveTo(112,975);ctx.lineTo(W-112,975);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+    ctx.save();rr(ctx,70,92,W-140,H-184,34);ctx.setLineDash([13,10]);ctx.lineWidth=3;ctx.strokeStyle=palette.accent+"cc";ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=palette.canvas;[H*.47].forEach(cutY=>{[70,W-70].forEach(cutX=>{ctx.beginPath();ctx.arc(cutX,cutY,18,0,Math.PI*2);ctx.fill()})});ctx.restore();
     e=hr?drawPoster(ctx,310,145):drawPoster(ctx,420,230);drawText(ctx,e+(hr?50:80),false,hr);
   }
   else if(style==="split"){
