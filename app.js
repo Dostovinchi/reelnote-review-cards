@@ -720,41 +720,125 @@ function normalizeRatingApiFilm(item){
     rating,text:"",url,isReview:false,isDiaryEntry:true
   };
 }
-async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
-  const endpoint="https://letterboxd-scraper.omkar.cloud/letterboxd/members/films";
-  const isPage=text=>{
+function parseMemberFilmsPage(markup,username,pageNumber){
+  const doc=new DOMParser().parseFromString(markup,"text/html");
+  const containers=[...doc.querySelectorAll(".poster-container")];
+  if(!containers.length){
+    const title=doc.title||"";
+    throw Error(/cloudflare|just a moment|access denied|attention required/i.test(title)
+      ?"Letterboxd blocked the public films page."
+      :"No film posters were found on Letterboxd page "+pageNumber+".");
+  }
+  const films=containers.map(container=>{
+    const link=container.querySelector('a[href*="/film/"]');
+    const img=container.querySelector("img[alt]");
+    const rawHref=link?.getAttribute("href")||"";
+    const slugAttr=container.getAttribute("data-film-slug")
+      ||container.querySelector("[data-film-slug]")?.getAttribute("data-film-slug")
+      ||"";
+    const slug=(slugAttr||((rawHref.match(/\/film\/([^/?#]+)/i)||[])[1]||"")).toLowerCase();
+    const title=String(
+      img?.getAttribute("alt")
+      ||container.getAttribute("data-film-name")
+      ||container.querySelector("[data-film-name]")?.getAttribute("data-film-name")
+      ||""
+    ).trim();
+    const ratingNode=container.querySelector(".poster-viewingdata .rating")
+      ||container.querySelector(".rating");
+    const ratingClass=[
+      ratingNode?.getAttribute("class")||"",
+      container.querySelector('[class*="rated-"]')?.getAttribute("class")||""
+    ].join(" ");
+    const classMatch=ratingClass.match(/\brated-(\d{1,2})\b/i);
+    let rating=null;
+    if(classMatch){
+      const halfStars=Number(classMatch[1]);
+      if(halfStars>=1&&halfStars<=10)rating=halfStars/2;
+    }
+    if(rating===null&&ratingNode){
+      const explicit=ratingNode.getAttribute("data-rating")||ratingNode.getAttribute("data-member-rating")||"";
+      const parsed=Number(explicit);
+      if(explicit!==""&&Number.isFinite(parsed)&&parsed>=0.5&&parsed<=5)rating=parsed;
+    }
+    const yearAttr=container.getAttribute("data-film-release-year")
+      ||container.getAttribute("data-film-year")
+      ||container.querySelector("[data-film-release-year]")?.getAttribute("data-film-release-year")
+      ||"";
+    const yearFromSlug=(slug.match(/-(\d{4})$/)||[])[1]||"";
+    let url=slug?"https://letterboxd.com/film/"+slug+"/":"https://letterboxd.com/"+encodeURIComponent(username)+"/films/";
     try{
-      const data=JSON.parse(text);
-      return data&&Array.isArray(data.films)&&Number.isFinite(Number(data.current_page))&&Number.isFinite(Number(data.total_pages));
-    }catch{return false}
-  };
-  const fetchPage=async page=>{
-    const url=endpoint+"?member="+encodeURIComponent(username)+"&sort=rated&page="+page;
-    const body=await fetchPublicText(url,isPage,"Ratings catalogue");
-    let data;try{data=JSON.parse(body)}catch{throw Error("Ratings catalogue returned invalid JSON on page "+page+".")}
-    if(!Array.isArray(data.films))throw Error("Ratings catalogue returned an unsupported page format.");
-    return data;
-  };
+      if(rawHref){
+        const candidate=new URL(rawHref,"https://letterboxd.com");
+        if(candidate.protocol==="https:"&&candidate.hostname==="letterboxd.com"&&/\/film\/[^/]+/.test(candidate.pathname))url=candidate.href;
+      }
+    }catch{}
+    return{guid:"letterboxd-rating-"+slug,slug,title,year:String(yearAttr||yearFromSlug),date:"",rating,text:"",url,isReview:false,isDiaryEntry:true};
+  }).filter(item=>item.title&&item.rating!==null);
+  const pageNumbers=[];
+  for(const node of doc.querySelectorAll(".paginate-page, a[href*='/films/page/']")){
+    const textValue=String(node.textContent||"").trim();
+    const number=Number(textValue);
+    if(Number.isInteger(number)&&number>0)pageNumbers.push(number);
+    const href=node.getAttribute?.("href")||"";
+    const match=href.match(/\/films\/page\/(\d+)/);
+    if(match)pageNumbers.push(Number(match[1]));
+  }
+  const lastPageLink=doc.querySelector("a[rel='last'][href*='/films/page/'], a.paginate-last[href*='/films/page/']");
+  const lastMatch=(lastPageLink?.getAttribute("href")||"").match(/\/films\/page\/(\d+)/);
+  if(lastMatch)pageNumbers.push(Number(lastMatch[1]));
+  const totalPages=Math.max(1,...pageNumbers);
+  return{films,totalPages,page:pageNumber};
+}
+async function fetchMemberFilmsPage(username,pageNumber){
+  const path=pageNumber===1
+    ?"/"+encodeURIComponent(username)+"/films/"
+    :"/"+encodeURIComponent(username)+"/films/page/"+pageNumber+"/";
+  const target="https://letterboxd.com"+path;
+  const proxy="https://proxy.cors.dev/"+target;
+  let lastError=null;
+  try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch(proxy,{credentials:"omit",cache:"no-store",headers:{Accept:"text/html"},signal:controller.signal});
+      if(!response.ok){
+        const detail=response.headers.get("X-Cors-Error");
+        throw Error(detail||"Public page request returned HTTP "+response.status+".");
+      }
+      const markup=await response.text();
+      if(!/<html|poster-container/i.test(markup))throw Error("The public page did not contain a Letterboxd film grid.");
+      return parseMemberFilmsPage(markup,username,pageNumber);
+    }finally{clearTimeout(timer)}
+  }catch(error){lastError=error}
+  try{
+    const body=await relay(target,markup=>/<html|poster-container/i.test(markup)&&/poster-container/i.test(markup));
+    return parseMemberFilmsPage(body,username,pageNumber);
+  }catch(error){
+    const detail=String(error?.message||lastError?.message||"Public page unavailable");
+    if(/403|401|cloudflare|access denied|attention required/i.test(detail)){
+      throw Error("Letterboxd is blocking access to the public films page (HTTP 401/403).");
+    }
+    throw Error("Could not read Letterboxd films page "+pageNumber+".");
+  }
+}
+async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
   onProgress("Loading your ratings…");
-  const first=await fetchPage(1);
-  const totalPages=Math.max(1,Math.floor(Number(first.total_pages)||1));
+  const first=await fetchMemberFilmsPage(username,1);
+  const totalPages=Math.max(1,Number(first.totalPages)||1);
   const pages=[first];
   for(let page=2;page<=totalPages;page+=3){
     const batch=[];
     for(let n=page;n<Math.min(page+3,totalPages+1);n++)batch.push(n);
     onProgress("Loading ratings · page "+batch[0]+"–"+batch[batch.length-1]+" of "+totalPages);
-    pages.push(...await Promise.all(batch.map(fetchPage)));
+    pages.push(...await Promise.all(batch.map(n=>fetchMemberFilmsPage(username,n))));
   }
   const byKey=new Map();
-  for(const data of pages){
-    for(const item of data.films){
-      const normalized=normalizeRatingApiFilm(item);
-      if(!normalized.title||normalized.rating===null)continue;
-      const key=normalized.slug||normalizeFilmKey(normalized.title+"-"+normalized.year);
-      if(!byKey.has(key))byKey.set(key,normalized);
+  for(const page of pages){
+    for(const film of page.films){
+      const key=film.slug||normalizeFilmKey(film.title+"-"+film.year);
+      if(!byKey.has(key))byKey.set(key,film);
     }
   }
-  return {films:[...byKey.values()],totalPages};
+  return{films:[...byKey.values()],totalPages};
 }
 function mergeRSSReviewText(ratedFilms,rssEntries){
   const bySlug=new Map(),byTitleYear=new Map();
