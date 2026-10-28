@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028j"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028q" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028k"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028r" defer></script></head>
 <body><header class="topbar">
   <a class="brand" href="#top" aria-label="Framix home"><span class="brand-mark">f.</span><span>framix</span></a>
   <nav aria-label="Main navigation"><a href="#connect">Ratings</a><a href="#studio">Poster studio</a></nav>
@@ -48,12 +48,6 @@
         </div>
       </form>
       <p id="lbStatus" class="connection-status" role="status" aria-live="polite">Enter a public profile to begin.</p>
-      <details class="proxy-settings">
-        <summary>Ratings not loading?</summary>
-        <p>Letterboxd blocks direct browser requests, so imports go through relays. If the free public relays are slow or blocked on your network, point the importer at your own proxy — a free Cloudflare Worker is included in the repo (<code>worker/</code>).</p>
-        <div class="input-action"><input id="proxyUrl" type="url" autocomplete="off" spellcheck="false" aria-label="Proxy base URL" placeholder="https://your-proxy.workers.dev"><button id="proxySave" class="button quiet" type="button">Save</button></div>
-        <p id="proxyStatus" class="connection-status" role="status" aria-live="polite"></p>
-      </details>
       <div id="lbReviews" class="review-results" aria-live="polite"></div>
     </article>
   </div>
@@ -86,6 +80,12 @@
           <div class="tmdb-options-heading"><span>POSTER OPTIONS</span><small id="tmdbPosterCount"></small></div>
           <p class="tmdb-help">Choose any poster artwork TMDB has for this title.</p>
           <div id="tmdbPosters" class="tmdb-posters" aria-live="polite"></div>
+        </div>
+        <div id="tmdbBackdropOptionsWrap" class="tmdb-poster-options-wrap tmdb-backdrop-options-wrap" hidden>
+          <div class="tmdb-options-heading"><span>BACKGROUND ARTWORK</span><small id="tmdbBackdropCount"></small></div>
+          <p class="tmdb-help">Used behind full-bleed layouts like Blurred backdrop, Top banner and Cinema strip.</p>
+          <div id="tmdbBackdrops" class="backdrop-options" aria-live="polite"></div>
+          <button id="backdropReset" class="button quiet backdrop-reset" type="button">Use the poster as background</button>
         </div>
       </div>
       <div class="editor-divider"></div>

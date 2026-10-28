@@ -37,7 +37,7 @@ Until those project-specific steps are done, the sign-in dialog intentionally ex
 3. Framix optionally matches entries from the public RSS feed to add review text and dates.
 4. Choose **Use review** to move a film's title, rating, year and available review text into the poster editor.
 
-The paginated catalogue is an unofficial public service and may be rate-limited, bot-protected, or unavailable. Framix tries a configured proxy first, then public relays; if the catalogue is unavailable it may show only the smaller recent RSS results, and labels that fallback clearly.
+The paginated catalogue is an unofficial public service and may be rate-limited, bot-protected, or unavailable. Framix tries a configured proxy first, then public relays, retries a failed page once, and keeps the pages it did get instead of discarding the whole shelf. If every page fails it may show only the smaller recent RSS results.
 
 ### Reliable imports (free Worker)
 
@@ -55,7 +55,7 @@ Then set the deployed URL in `config.js`:
 window.FRAMIX_CONFIG = { ..., proxyBase: "https://framix-proxy.your-name.workers.dev" };
 ```
 
-Visitors can also paste their own relay URL on the site under **Ratings not loading?** (stored in their browser only).
+The proxy base is configured in `config.js` only; the site has no in-page proxy field.
 
 ## Deploy
 
@@ -81,7 +81,7 @@ TMDB search needs your own API key; manual uploads and poster export remain avai
 
 ## Automatic poster selection and Instagram Story export
 
-When a rated film is selected, Framix automatically searches TMDB using the title and release year. The closest matching result is selected automatically only when the title looks like a reasonable match. The selected title's TMDB Images endpoint is then used to show its available poster-variant list; choose any thumbnail to replace the poster. If the key is saved after selecting a review, Framix re-runs the lookup for the current title.
+When a rated film is selected, Framix automatically searches TMDB using the title and release year. The closest matching result is selected automatically only when the title looks like a reasonable match. The selected title's TMDB Images endpoint is then used to show its available poster-variant list; choose any thumbnail to replace the poster. Background artwork is chosen independently below it, and drives full-bleed layouts such as Blurred backdrop, Top banner and Cinema strip. If the key is saved after selecting a review, Framix re-runs the lookup for the current title.
 
 TMDB documents the per-title poster/image endpoint for movies and TV, and image.tmdb.org URLs are built from the returned file paths. See the [TMDB movie images API](https://developer.themoviedb.org/reference/movie-images), [image URL basics](https://developer.themoviedb.org/docs/image-basics), and [application authentication](https://developer.themoviedb.org/docs/authentication-application).
 

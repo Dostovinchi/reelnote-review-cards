@@ -64,10 +64,10 @@ function syncThemeOptions(repaint=true){
   if(repaint&&typeof paint==="function")paint();
 }
 
-let cardStyle="medium",poster=null,back=null,posterObjectUrl=null,backObjectUrl=null;
+let cardStyle="medium",poster=null,back=null,posterObjectUrl=null,backObjectUrl=null,activeBackdropPath="";
 
 /* ---------- TMDB ---------- */
-let tmdbResults=[],selectedTMDB=null,tmdbPosterVariants=[],tmdbLoadSequence=0,activePosterPath="",lbMatches=[],lbLinkSearched="";
+let tmdbResults=[],selectedTMDB=null,tmdbPosterVariants=[],tmdbBackdropVariants=[],tmdbLoadSequence=0,backdropLoadSequence=0,activePosterPath="",lbMatches=[],lbLinkSearched="";
 function setTMDBStatus(msg,type=""){status("#tmdbStatus",msg,type)}
 function tmdbKey(){return safeStore.get("framix.tmdbKey")||""}
 async function tmdb(path,params={}){
@@ -169,7 +169,9 @@ function renderTMDBPosterOptions(){
   tmdbPosterVariants.forEach((v,i)=>{
     const slide=document.createElement("figure");slide.className="poster-slide"+(i===carouselIndex?" is-current":"");slide.dataset.index=String(i);
     const frame=document.createElement("div");frame.className="slide-frame";
-    const img=document.createElement("img");img.alt="";img.loading="lazy";img.draggable=false;img.src="https://image.tmdb.org/t/p/w342"+v.file_path;img.onerror=()=>{img.alt="Preview unavailable"};
+    const img=document.createElement("img");img.alt="";img.loading="lazy";img.draggable=false;
+    const direct="https://image.tmdb.org/t/p/w342"+v.file_path;img.src=direct;
+    img.onerror=()=>{const relayed=proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else img.alt="Preview unavailable"};
     frame.append(img);
     const cap=document.createElement("figcaption");const c1=document.createElement("span");c1.textContent=posterVariantLabel(v);const c2=document.createElement("span");c2.textContent="POSTER "+(i+1);cap.append(c1,c2);
     slide.append(frame,cap);
@@ -254,16 +256,46 @@ async function applyTMDBPoster(filePath,requestId){
 }
 async function applyTMDBBackdrop(filePath,requestId){
   if(!filePath)return false;
+  const seq=++backdropLoadSequence;
   try{
     const blob=await fetchImage("https://image.tmdb.org/t/p/w1280"+filePath);
-    if(requestId!==tmdbLoadSequence)return false;
+    if(requestId!==tmdbLoadSequence||seq!==backdropLoadSequence)return false;
     const objectUrl=URL.createObjectURL(blob),img=new Image();
     await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error("Backdrop could not be decoded"));img.src=objectUrl});
-    if(requestId!==tmdbLoadSequence){URL.revokeObjectURL(objectUrl);return false}
+    if(requestId!==tmdbLoadSequence||seq!==backdropLoadSequence){URL.revokeObjectURL(objectUrl);return false}
     if(backObjectUrl)URL.revokeObjectURL(backObjectUrl);
-    backObjectUrl=objectUrl;back=img;paint();
+    backObjectUrl=objectUrl;back=img;activeBackdropPath=filePath;refreshBackdropSelection();paint();
     return true;
   }catch(error){console.warn("TMDB backdrop failed",error);return false}
+}
+function refreshBackdropSelection(){
+  const root=$("#tmdbBackdrops");if(!root)return;
+  [...root.children].forEach(button=>button.classList.toggle("is-current",button.dataset.path===activeBackdropPath));
+}
+function renderTMDBBackdropOptions(){
+  const wrap=$("#tmdbBackdropOptionsWrap"),root=$("#tmdbBackdrops");
+  if(!wrap||!root)return;
+  root.replaceChildren();
+  if(!selectedTMDB||!tmdbBackdropVariants.length){wrap.hidden=true;$("#tmdbBackdropCount").textContent="";return}
+  wrap.hidden=false;
+  $("#tmdbBackdropCount").textContent=tmdbBackdropVariants.length+" option"+(tmdbBackdropVariants.length===1?"":"s");
+  tmdbBackdropVariants.forEach((variant,index)=>{
+    const button=document.createElement("button");button.type="button";button.dataset.path=variant.file_path;
+    button.className="backdrop-option"+(variant.file_path===activeBackdropPath?" is-current":"");
+    button.setAttribute("aria-label","Use background "+(index+1)+" of "+tmdbBackdropVariants.length);
+    const img=document.createElement("img");img.alt="";img.loading="lazy";
+    const direct="https://image.tmdb.org/t/p/w300"+variant.file_path;img.src=direct;
+    img.onerror=()=>{const relayed=proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else button.hidden=true};
+    button.append(img);
+    button.addEventListener("click",()=>chooseTMDBBackdrop(variant.file_path));
+    root.append(button);
+  });
+}
+async function chooseTMDBBackdrop(filePath){
+  if(!filePath||!selectedTMDB)return;
+  const applied=await applyTMDBBackdrop(filePath,tmdbLoadSequence);
+  if(applied)setTMDBStatus("Background artwork applied.","success");
+  else setTMDBStatus("Could not load that background artwork. Try another one.","error");
 }
 async function loadTMDBTitle(item,options={}){
   const requestId=options.requestId??(++tmdbLoadSequence);
@@ -290,12 +322,19 @@ async function loadTMDBTitle(item,options={}){
     tmdbPosterVariants=[...allPaths.values()];
     if(preferredPath)tmdbPosterVariants.sort((a,b)=>Number(b.file_path===preferredPath)-Number(a.file_path===preferredPath));
     if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images.");
+    const backdropPaths=new Map();
+    [detail.backdrop_path||item.backdrop_path||"",...(imageData.backdrops||[]).map(backdrop=>backdrop.file_path||"")]
+      .filter(Boolean).forEach(path=>{if(!backdropPaths.has(path))backdropPaths.set(path,{file_path:path})});
+    tmdbBackdropVariants=[...backdropPaths.values()];
+    if(!tmdbBackdropVariants.length&&backObjectUrl){URL.revokeObjectURL(backObjectUrl);backObjectUrl=null;back=null}
     $("#filmTitle").value=mediaTitle.slice(0,100);
     $("#filmYear").value=[creator,mediaYear].filter(Boolean).join(", ").slice(0,60);
     const primaryPath=preferredPath||tmdbPosterVariants[0].file_path;
     const loaded=await applyTMDBPoster(primaryPath,requestId);
     if(!loaded)return;
     renderTMDBPosterOptions();
+    activeBackdropPath="";
+    renderTMDBBackdropOptions();
     void applyTMDBBackdrop(detail.backdrop_path||item.backdrop_path||"",requestId);
     setTMDBStatus((options.automatic?"Review imported · poster loaded automatically. ":"Poster loaded. ")+tmdbPosterVariants.length+" TMDB poster option"+(tmdbPosterVariants.length===1?"":"s")+" — swipe the artwork to switch.","success");
   }catch(error){
@@ -310,6 +349,8 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
   $("#tmdbResults").replaceChildren();
   $("#tmdbPosterOptionsWrap").hidden=true;
   $("#tmdbPosters").replaceChildren();
+  const backdropWrap=$("#tmdbBackdropOptionsWrap");if(backdropWrap)backdropWrap.hidden=true;
+  const backdropRoot=$("#tmdbBackdrops");if(backdropRoot)backdropRoot.replaceChildren();
   if(!tmdbKey()){
     setTMDBStatus("Review imported. Save your TMDB v3 key in step B to load the artwork automatically.","error");
     return;
@@ -430,7 +471,7 @@ async function fetchReview(){
       if(p){data={text:(data&&data.text)||p.text,rating:(data&&data.rating)||p.rating};src="review page"}
     }catch(e){console.warn("Page fetch failed",e)}
   }
-  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or set a proxy under “Ratings not loading?”. ["+(window.relayLog||[]).join(" · ")+"]");
+  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or try again later. ["+(window.relayLog||[]).join(" · ")+"]");
   if(data.rating&&[...$("#rating").options].some(o=>o.value===String(data.rating)))$("#rating").value=String(data.rating);
   if(data.text)$("#reviewText").value=data.text;
   $("#reviewerName").value=user;
@@ -611,15 +652,13 @@ async function relay(url,valid){
   if(base)targets.push(base+"/?url="+enc(url));
   targets.push(
     "https://proxy.cors.dev/"+url,
-    "https://api.allorigins.win/raw?url="+enc(url),
-    "https://api.codetabs.com/v1/proxy/?quest="+enc(url),
-    "https://corsproxy.io/?url="+enc(url)
+    "https://api.allorigins.win/raw?url="+enc(url)
   );
   window.relayLog=[];
   for(const target of targets){
     let host="?";try{host=new URL(target).hostname.replace(/^(api|www)\./,"")}catch{}
     try{
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),9000);
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
       try{
         const response=await fetch(target,{credentials:"omit",signal:controller.signal,cache:"no-store"});
         if(!response.ok)throw Error("HTTP "+response.status);
@@ -778,7 +817,7 @@ function parseMemberFilmsPage(markup,username,pageNumber){
   const totalPages=Math.max(1,...pageNumbers);
   return{films,totalPages,page:pageNumber};
 }
-async function fetchMemberFilmsPage(username,pageNumber){
+async function fetchMemberFilmsPage(username,pageNumber,attempt=0){
   const path=pageNumber===1
     ?"/"+encodeURIComponent(username)+"/films/"
     :"/"+encodeURIComponent(username)+"/films/page/"+pageNumber+"/";
@@ -788,6 +827,10 @@ async function fetchMemberFilmsPage(username,pageNumber){
     return parseMemberFilmsPage(body,username,pageNumber);
   }catch(error){
     const detail=String(error?.message||"Public page unavailable");
+    if(attempt<1&&/403|429|blocking|blocked|timeout|failed/i.test(detail)){
+      await new Promise(resolve=>setTimeout(resolve,900));
+      return fetchMemberFilmsPage(username,pageNumber,attempt+1);
+    }
     if(/403|401|cloudflare|access denied|attention required|just a moment/i.test(detail)){
       throw Error("Letterboxd is blocking public access from this network right now.");
     }
@@ -800,11 +843,14 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
   const first=await fetchMemberFilmsPage(username,1);
   const totalPages=Math.max(1,Number(first.totalPages)||1);
   const pages=[first];
-  for(let page=2;page<=totalPages;page+=3){
+  let failed=0;
+  for(let page=2;page<=totalPages;page+=2){
     const batch=[];
-    for(let n=page;n<Math.min(page+3,totalPages+1);n++)batch.push(n);
-    onProgress("Loading ratings · page "+batch[0]+"–"+batch[batch.length-1]+" of "+totalPages);
-    pages.push(...await Promise.all(batch.map(n=>fetchMemberFilmsPage(username,n))));
+    for(let n=page;n<Math.min(page+2,totalPages+1);n++)batch.push(n);
+    onProgress("Loading ratings · page "+batch[0]+(batch.length>1?"–"+batch[batch.length-1]:"")+" of "+totalPages);
+    const settled=await Promise.allSettled(batch.map(n=>fetchMemberFilmsPage(username,n)));
+    settled.forEach(result=>result.status==="fulfilled"?pages.push(result.value):failed++);
+    if(page+2<=totalPages)await new Promise(resolve=>setTimeout(resolve,120));
   }
   const byKey=new Map();
   for(const page of pages){
@@ -813,7 +859,7 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
       if(!byKey.has(key))byKey.set(key,film);
     }
   }
-  return{films:[...byKey.values()],totalPages};
+  return{films:[...byKey.values()],totalPages,failed};
 }
 function mergeRSSReviewText(ratedFilms,rssEntries){
   const bySlug=new Map(),byTitleYear=new Map();
@@ -850,8 +896,9 @@ async function loadLB(e){
     const result=await ratingsPromise;
     letterboxdReviews=mergeRSSReviewText(result.films,rssEntries);
     renderLB(letterboxdReviews);
+    const partial=result.failed?" ("+result.failed+" page"+(result.failed===1?"":"s")+" skipped)":"";
     status("#lbStatus",letterboxdReviews.length
-      ?"Loaded "+letterboxdReviews.length+" rated films."
+      ?"Loaded "+letterboxdReviews.length+" rated films"+partial+"."
       :"No rated films found. Make sure the profile is public.",
       letterboxdReviews.length?"success":"error");
   }catch(error){
@@ -868,9 +915,9 @@ async function loadLB(e){
       if(/blocking|refusing|401|403/i.test(errorText))
         status("#lbStatus","Letterboxd is blocking automated access from this network right now. Card making still works — retry the import in a few minutes.","error");
       else if(/without a film grid|unexpected|read Letterboxd/i.test(errorText))
-        status("#lbStatus","Letterboxd returned a page the importer couldn’t read. Retry, or set your own proxy under “Ratings not loading?”.","error");
+        status("#lbStatus","Letterboxd returned a page the importer couldn’t read. Retry in a moment.","error");
       else
-        status("#lbStatus","Ratings couldn’t be loaded. Check the username, or use “Ratings not loading?” to set your own proxy.","error");
+        status("#lbStatus","Ratings couldn’t be loaded. Check the username and retry in a moment.","error");
     }
     console.warn("Letterboxd import failed",error);
   }finally{button.disabled=false;button.textContent="Load ratings ↗"}
@@ -899,12 +946,12 @@ function updateAuth(session){const email=session?.user?.email;$("#accountLabel")
 function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.supabaseAnonKey||!window.supabase?.createClient){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}try{client=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey)}catch(e){console.warn(e)}if(!client){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}$("#authFields").hidden=false;$("#authSetupNote").hidden=true;client.auth.getSession().then(({data})=>updateAuth(data?.session||null)).catch(()=>updateAuth(null));client.auth.onAuthStateChange((_e,session)=>updateAuth(session));if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery")$("#resetDialog").showModal()}
 
 /* ---------- Wiring ---------- */
-$("#proxySave")?.addEventListener("click",()=>{
-  const input=$("#proxyUrl"),note=$("#proxyStatus"),value=input.value.trim().replace(/\/+$/,"");
-  note.classList.remove("error");
-  if(value&&!/^https?:\/\//i.test(value)){note.textContent="Use a full http:// or https:// URL.";note.classList.add("error");return}
-  safeStore.set("framix.proxy",value);input.value=value;
-  note.textContent=value?"Saved. Ratings and artwork will try this proxy first.":"Cleared. Ratings will use the public relays again.";
+$("#backdropReset")?.addEventListener("click",()=>{
+  if(backObjectUrl)URL.revokeObjectURL(backObjectUrl);
+  backdropLoadSequence++;
+  backObjectUrl=null;back=null;activeBackdropPath="";
+  refreshBackdropSelection();paint();
+  setTMDBStatus("Background now uses the poster artwork.","success");
 });
 $("#tmdbSaveKey").addEventListener("click",()=>{
  const key=val("#tmdbKey");
@@ -975,7 +1022,6 @@ window.FramixStudio={
 
 /* ---------- Init ---------- */
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
-const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField){proxyField.value=savedProxy;const note=$("#proxyStatus");if(note)note.textContent="Using your saved proxy first."}
 $$(".hero-frame img").forEach(img=>{
   const hide=()=>{img.hidden=true};
   img.addEventListener("error",hide);
