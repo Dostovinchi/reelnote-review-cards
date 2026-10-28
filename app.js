@@ -30,16 +30,6 @@ const THEME_PALETTES={
     lb_sunset:makePalette("Sunset","#2b160d","#ff985c","#fff2e6","#e0bda5"),
     lb_cream:makePalette("Cream","#eee6d8","#42614d","#232925","#62685f",true),
     lb_mint:makePalette("Mint","#08251f","#71e0bf","#e9fff7","#a8d8cb")
-  },
-  serializd:{
-    sz_violet:makePalette("Violet","#151024","#b59aff","#f6f0ff","#c0b5d9"),
-    sz_pink:makePalette("Pink","#28111f","#ff8bc3","#fff0f6","#d8b6c9"),
-    sz_cyan:makePalette("Cyan","#071e27","#59dce5","#eaffff","#b0d3d8"),
-    sz_lime:makePalette("Lime","#18200c","#b4e56e","#f5ffe9","#c6d5ad"),
-    sz_orchid:makePalette("Orchid","#27112f","#e69aff","#fff0ff","#d7b9e5"),
-    sz_ocean:makePalette("Deep Sea","#091a35","#7aa8ff","#eef4ff","#afc3ed"),
-    sz_amber:makePalette("Amber","#2c1a08","#ffc46d","#fff7e7","#dec49d"),
-    sz_midnight:makePalette("After Dark","#111522","#aeb8d8","#f0f2ff","#b4b9ca")
   }
 };
 function activePalette(){
@@ -613,9 +603,8 @@ function buildStyleChips(){
 }
 
 /* ---------- Diary connections (public RSS / diary endpoints) ---------- */
-let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie";
+let client=null,authMode="signin",letterboxdReviews=[],lastReviewMediaHint="movie";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
-function normalizeSZ(input){let s=String(input||"").trim();if(/^https?:\/\//i.test(s)){try{const u=new URL(s);if(!/(^|\.)serializd\.com$/i.test(u.hostname))return"";const parts=u.pathname.split("/").filter(Boolean);const i=parts.findIndex(x=>["user","users"].includes(x.toLowerCase()));s=i>=0?parts[i+1]:(parts[parts.length-1]||"")}catch{return""}}s=s.replace(/^@/,"").replace(/\/$/,"");return /^[A-Za-z0-9_-]{2,40}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
 function plain(raw){const d=new DOMParser().parseFromString("<!doctype html><html><body>"+String(raw||"")+"</body></html>","text/html");d.querySelectorAll("script,style,img").forEach(n=>n.remove());d.querySelectorAll("br").forEach(n=>n.replaceWith(document.createTextNode("\n")));return(d.body.textContent||"").replace(/\u00a0/g," ").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
 function parseRSS(text,username){
@@ -631,8 +620,76 @@ function parseRSS(text,username){
     return{guid,slug:filmSlugFromUrl(link),title,year:rssTag(item,"filmYear"),date:rssTag(item,"watchedDate")||rssTag(item,"pubDate").slice(0,10),rating,text:description,url,isReview,isDiaryEntry};
   }).filter(x=>x.title&&x.isDiaryEntry&&(x.isReview||x.rating!==null));
 }
-async function relay(url,valid){let last;const enc=encodeURIComponent;const targets=["https://api.allorigins.win/raw?url="+enc(url),"https://api.codetabs.com/v1/proxy/?quest="+enc(url),"https://corsproxy.io/?url="+enc(url),"https://proxy.cors.dev/"+url];for(const target of targets){try{const c=new AbortController(),timer=setTimeout(()=>c.abort(),12000);try{const r=await fetch(target,{credentials:"omit",signal:c.signal});if(!r.ok)throw Error("HTTP "+r.status);const body=await r.text();if(valid&&!valid(body))throw Error("Unexpected response from relay");return body}finally{clearTimeout(timer)}}catch(e){last=e}}throw last||Error("All public relays failed")}
-function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="lb-empty";p.textContent="No recent diary entries with a rating or written review were found in the public RSS feed.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="lb-review-card";const meta=document.createElement("div");meta.className="lb-review-meta";const date=document.createElement("span");date.textContent=r.date||(r.text?"LETTERBOXD REVIEW":"RATED FILM");const stars=document.createElement("span");stars.className="lb-stars";stars.textContent=r.rating===null?"UNRATED":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));meta.append(date,stars);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="lb-year";year.textContent=r.year||"LETTERBOXD";const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text||"★ Rating only · No written review.";const actions=document.createElement("div");actions.className="lb-review-actions";const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Letterboxd ↗";const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use this entry";actions.append(link,use);card.append(meta,title,year,excerpt,actions);grid.append(card)})}
+async function relay(url,valid){
+  let lastError=null;
+  const enc=encodeURIComponent;
+  const targets=[
+    "https://api.allorigins.win/raw?url="+enc(url),
+    "https://api.codetabs.com/v1/proxy/?quest="+enc(url),
+    "https://corsproxy.io/?url="+enc(url),
+    "https://cors.isomorphic-git.org/"+url
+  ];
+  for(const target of targets){
+    try{
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+      try{
+        const response=await fetch(target,{credentials:"omit",signal:controller.signal,cache:"no-store"});
+        if(!response.ok)throw Error("Relay HTTP "+response.status);
+        const body=await response.text();
+        if(valid&&!valid(body))throw Error("Relay returned unexpected data");
+        return body;
+      }finally{clearTimeout(timer)}
+    }catch(error){lastError=error}
+  }
+  throw lastError||Error("All public relays failed");
+}
+async function fetchPublicText(url,valid,label){
+  let directError=null;
+  try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const response=await fetch(url,{mode:"cors",credentials:"omit",cache:"no-store",headers:{Accept:"application/json, application/rss+xml, application/xml, text/xml, */*"},signal:controller.signal});
+      if(!response.ok)throw Error(label+" HTTP "+response.status);
+      const body=await response.text();
+      if(valid&&!valid(body))throw Error(label+" returned unexpected data");
+      return body;
+    }finally{clearTimeout(timer)}
+  }catch(error){directError=error}
+  try{return await relay(url,valid)}catch(relayError){
+    const reasons=[directError?.message,relayError?.message].filter(Boolean).join("; ");
+    if(/HTTP 401|HTTP 403/i.test(reasons)){
+      throw Error(label+" access was rejected (HTTP 401/403). The public endpoint or relay is refusing the request.");
+    }
+    throw Error(label+" unavailable from the browser and public relays. "+(relayError?.message||directError?.message||"Try again later."));
+  }
+}
+function renderLB(rows){
+  const grid=$("#lbReviews");
+  if(!rows.length){
+    const p=document.createElement("p");p.className="lb-empty";
+    p.textContent="No rated films found for this profile.";
+    grid.replaceChildren(p);return;
+  }
+  const fragment=document.createDocumentFragment();
+  rows.forEach((r,i)=>{
+    const card=document.createElement("article");card.className="lb-review-card";
+    const content=document.createElement("div");content.className="lb-review-content";
+    const meta=document.createElement("div");meta.className="lb-review-meta";
+    const date=document.createElement("span");date.textContent=r.date||(r.text?"REVIEW":"RATED");
+    const stars=document.createElement("span");stars.className="lb-stars";
+    stars.textContent=r.rating===null?"—":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));
+    meta.append(date,stars);
+    const title=document.createElement("h4");title.textContent=r.title;
+    content.append(meta,title);
+    if(r.year){const year=document.createElement("p");year.className="lb-year";year.textContent=r.year;content.append(year)}
+    if(r.text){const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text;content.append(excerpt)}
+    const actions=document.createElement("div");actions.className="lb-review-actions";
+    const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Letterboxd ↗";
+    const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use review";
+    actions.append(link,use);card.append(content,actions);fragment.append(card);
+  });
+  grid.replaceChildren(fragment);
+}
 function ratingValue(raw){
   if(raw===null||raw===undefined||raw==="")return null;
   const value=Number(raw);
@@ -665,27 +722,28 @@ function normalizeRatingApiFilm(item){
 }
 async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
   const endpoint="https://letterboxd-scraper.omkar.cloud/letterboxd/members/films";
-  const fetchPage=async(page)=>{
+  const isPage=text=>{
+    try{
+      const data=JSON.parse(text);
+      return data&&Array.isArray(data.films)&&Number.isFinite(Number(data.current_page))&&Number.isFinite(Number(data.total_pages));
+    }catch{return false}
+  };
+  const fetchPage=async page=>{
     const url=endpoint+"?member="+encodeURIComponent(username)+"&sort=rated&page="+page;
-    const body=await relay(url,text=>{
-      try{
-        const data=JSON.parse(text);
-        return data&&Array.isArray(data.films)&&Number.isFinite(Number(data.current_page))&&Number.isFinite(Number(data.total_pages));
-      }catch{return false}
-    });
-    let data;try{data=JSON.parse(body)}catch{throw Error("The ratings service returned invalid JSON on page "+page+".")}
-    if(!Array.isArray(data.films))throw Error("The ratings service returned an unsupported page format.");
+    const body=await fetchPublicText(url,isPage,"Ratings catalogue");
+    let data;try{data=JSON.parse(body)}catch{throw Error("Ratings catalogue returned invalid JSON on page "+page+".")}
+    if(!Array.isArray(data.films))throw Error("Ratings catalogue returned an unsupported page format.");
     return data;
   };
+  onProgress("Loading your ratings…");
   const first=await fetchPage(1);
   const totalPages=Math.max(1,Math.floor(Number(first.total_pages)||1));
   const pages=[first];
   for(let page=2;page<=totalPages;page+=3){
     const batch=[];
     for(let n=page;n<Math.min(page+3,totalPages+1);n++)batch.push(n);
-    onProgress("Loading all rated films… page "+batch[0]+"–"+batch[batch.length-1]+" of "+totalPages);
-    const next=await Promise.all(batch.map(fetchPage));
-    pages.push(...next);
+    onProgress("Loading ratings · page "+batch[0]+"–"+batch[batch.length-1]+" of "+totalPages);
+    pages.push(...await Promise.all(batch.map(fetchPage)));
   }
   const byKey=new Map();
   for(const data of pages){
@@ -696,7 +754,7 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
       if(!byKey.has(key))byKey.set(key,normalized);
     }
   }
-  return {films:[...byKey.values()],totalPages,totalWatched:pages.reduce((n,p)=>n+(Array.isArray(p.films)?p.films.length:0),0)};
+  return {films:[...byKey.values()],totalPages};
 }
 function mergeRSSReviewText(ratedFilms,rssEntries){
   const bySlug=new Map(),byTitleYear=new Map();
@@ -713,81 +771,44 @@ function mergeRSSReviewText(ratedFilms,rssEntries){
 async function loadLB(e){
   e.preventDefault();
   const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");
-  if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}
-  button.disabled=true;
-  status("#lbStatus","Connecting to the public ratings catalogue…");
+  if(!username){status("#lbStatus","Enter your Letterboxd username.","error");return}
+  button.disabled=true;button.textContent="Loading…";
+  status("#lbStatus","Loading every rated film…");
   safeStore.set("framix.lb",username);
   try{
     const result=await fetchRatedLetterboxdFilms(username,message=>status("#lbStatus",message));
     let rssEntries=[];
     try{
-      const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\\s>]/i.test(x)&&/<channel[\\s>]/i.test(x));
+      const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
+      const xml=await fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Review feed");
       rssEntries=parseRSS(xml,username);
-    }catch(error){console.warn("Optional Letterboxd RSS review enrichment failed",error)}
+    }catch(error){console.info("Optional review text was unavailable",error)}
     letterboxdReviews=mergeRSSReviewText(result.films,rssEntries);
     renderLB(letterboxdReviews);
     status("#lbStatus",letterboxdReviews.length
-      ?"Loaded all "+letterboxdReviews.length+" rated films for @"+username+". "+(rssEntries.length?"Added available review text from the public RSS feed.":"")
-      :"No rated films were returned for @"+username+". Check that the profile is public or try again.",
+      ?"Loaded "+letterboxdReviews.length+" rated films."
+      :"No rated films found. Make sure the profile is public.",
       letterboxdReviews.length?"success":"error");
-  }catch(err){
-    /* Keep the old RSS importer as a fallback, but label its limited coverage honestly. */
+  }catch(error){
     try{
-      const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\\s>]/i.test(x)&&/<channel[\\s>]/i.test(x));
+      const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
+      const xml=await fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Letterboxd feed");
       letterboxdReviews=parseRSS(xml,username);
       renderLB(letterboxdReviews);
       status("#lbStatus",letterboxdReviews.length
-        ?"The full ratings service was unavailable. Showing "+letterboxdReviews.length+" recent RSS entries only; this is not your complete ratings list."
-        :"Could not load all rated films, and no recent RSS entries were found. "+(err?.message||"Ratings service unavailable."),
+        ?"Full ratings unavailable. Showing "+letterboxdReviews.length+" recent feed entries."
+        :"Ratings service unavailable; no recent feed entries found.",
         "error");
-    }catch(rssError){
+    }catch(feedError){
       letterboxdReviews=[];renderLB([]);
-      status("#lbStatus","Could not load the full ratings list: "+(err?.message||"ratings service unavailable")+". RSS fallback also failed: "+(rssError?.message||"unavailable")+".","error");
+      const errorText=String(error?.message||"Ratings service unavailable");
+      status("#lbStatus",/401|403/i.test(errorText)
+        ?"Ratings service refused the request (HTTP 401/403). Try again later."
+        :"Could not load ratings. Check your username or try again later.",
+        "error");
     }
-    console.warn("Letterboxd full ratings import failed",err);
-  }finally{button.disabled=false}
-}
-function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
-function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No diary entries loaded yet. Sign in with Serializd below, or choose a JSON/CSV export from your device.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
-function showSerializdRows(rows,username,source="Serializd"){
-  serializdReviews=(rows||[]).map(serialEntry).filter(x=>x.title).slice(0,12);
-  renderSZ(serializdReviews);
-  const message=serializdReviews.length
-    ?"Loaded "+serializdReviews.length+" public diary entries for @"+username+"."
-    :"The endpoint responded, but no diary entries with show titles were returned for @"+username+".";
-  status("#serializdStatus",message,serializdReviews.length?"success":"error");
-}
-async function loadSZ(e){
-  e.preventDefault();
-  const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");
-  if(!username){status("#serializdStatus","Enter a valid Serializd username or public profile URL.","error");return}
-  safeStore.set("framix.sz",username);
-  $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);
-  $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
-  $("#serializdProfileLink").hidden=false;
-  if(location.hostname.endsWith("github.io")){
-    const note=$("#serializdHostNote");if(note)note.hidden=false;
-    status("#serializdStatus","This GitHub Pages address cannot run the Serializd server endpoint. Use the Vercel version for direct, file-free import.","error");
-    note?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
-    return;
-  }
-  button.disabled=true;
-  status("#serializdStatus","Loading public Serializd diary…");
-  try{
-    const response=await fetch("/api/serializd?username="+encodeURIComponent(username),{
-      method:"GET",credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}
-    });
-    const payload=await response.json().catch(()=>null);
-    if(!response.ok)throw Error(payload?.error||"Serializd import endpoint returned HTTP "+response.status+".");
-    if(!Array.isArray(payload?.reviews))throw Error("The server returned an invalid Serializd diary response.");
-    showSerializdRows(payload.reviews,username,payload.source||"Serializd");
-  }catch(error){
-    const message=String(error?.message||"");
-    status("#serializdStatus",/Failed to fetch|NetworkError/i.test(message)
-      ?"Could not reach Framix's server API. Make sure you are using the Vercel site, not the GitHub Pages link."
-      :"Could not load the public diary: "+(message||"unknown server error"),"error");
-    console.warn("Serializd import failed",error);
-  }finally{button.disabled=false}
+    console.warn("Letterboxd import failed",error);
+  }finally{button.disabled=false;button.textContent="Load ratings ↗"}
 }
 async function fetchImage(url){
   let lastError=null;
@@ -860,23 +881,6 @@ $("#lbReviews").addEventListener("click",event=>{
  $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
-$("#serializdForm").addEventListener("submit",loadSZ);
-
-
-$("#serializdReviews").addEventListener("click",event=>{
- const button=event.target.closest("button[data-serializd-index]");if(!button)return;
- const review=serializdReviews[Number(button.dataset.serializdIndex)];if(!review)return;
- $("#filmTitle").value=review.title.slice(0,100);
- $("#filmYear").value=[review.year,review.date].filter(Boolean).join(" · ").slice(0,60);
- if(review.rating!==null){
-   $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
- }
- $("#reviewText").value=review.text||"";$("#showReview").checked=!!review.text;
- const who=normalizeSZ($("#serializdUsername").value),nameField=$("#reviewerName");if(who&&nameField)nameField.value=who;
- render();
- $("#studio").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
- lastReviewMediaHint="tv";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
-});
 $("#authOpen").addEventListener("click",()=>{setMode("signin");$("#authDialog").showModal()});$("#authClose").addEventListener("click",()=>$("#authDialog").close());$("#resetClose").addEventListener("click",()=>$("#resetDialog").close());$$("[data-mode]").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){$("#authSetupNote").hidden=false;$("#authFields").hidden=true;return}const email=val("#authEmail"),password=$("#authPassword").value,button=$("#authSubmit");button.disabled=true;setMsg(authMode==="signup"?"Creating account…":"Signing in…");try{const r=authMode==="signup"?await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(authMode==="signup"&&!r.data.session)setMsg("Account created. Check your email to verify your address.");else{setMsg("You're signed in.");setTimeout(()=>$("#authDialog").close(),650)}}catch(e){setMsg(e.message||"Sign-in failed. Check your details.",true)}finally{button.disabled=false}});
 $("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("Configure Supabase first.",true);return}const email=val("#authEmail");if(!email){setMsg("Enter your email first.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("If the account exists, a recovery email has been requested.")}catch(e){setMsg(e.message||"Could not request recovery.",true)}});
@@ -899,11 +903,6 @@ const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
 const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField)proxyField.value=savedProxy;
 buildStyleChips();
 syncThemeOptions(false);
-const lb=safeStore.get("framix.lb"),sz=safeStore.get("framix.sz");if(lb)$("#lbUsername").value=lb;if(sz){$("#serializdUsername").value=sz;$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(sz);$("#serializdProfileLink").textContent="Open @"+sz+" on Serializd ↗";$("#serializdProfileLink").hidden=false}
+const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
 paint();configureAuth();
-if(location.hostname.endsWith("github.io")){
-  const note=$("#serializdHostNote");
-  if(note)note.hidden=false;
-  status("#serializdStatus","Direct Serializd import needs the Vercel server API. This GitHub Pages link is static; deploy Framix once to Vercel, then use its URL on mobile.","error");
-}
 })();
