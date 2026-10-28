@@ -33,7 +33,7 @@ Until those project-specific steps are done, the sign-in dialog intentionally ex
 ## Letterboxd imports
 
 1. Enter a public Letterboxd username or profile URL.
-2. Framix requests every page from a public paginated films catalogue and keeps films with a member rating. It does not impose its own result-count limit.
+2. Framix reads the user's public paginated `/films/` grid through the `proxy.cors.dev` CORS bridge, extracts the member's rating from each poster's `rated-*` class, and continues through every page. It does not depend on the scraper API that was returning HTTP 401.
 3. Framix optionally matches entries from the public RSS feed to add review text and dates.
 4. Choose **Use review** to move a film's title, rating, year and available review text into the poster editor.
 
