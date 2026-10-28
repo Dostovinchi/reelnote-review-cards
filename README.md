@@ -30,20 +30,18 @@ A real auth project has to be created in your own Supabase account; its project 
 
 Until those project-specific steps are done, the sign-in dialog intentionally explains that authentication is not configured. Card creation does not require an account.
 
-## Letterboxd feed behavior
+## Letterboxd imports
 
-1. Use your public Letterboxd username or profile URL.
-2. Framix displays every matching diary entry returned by Letterboxd's public RSS feed, including written reviews and rating-only entries (the `letterboxd-watch-` records). Framix adds no result-count cap; Letterboxd itself only exposes its recent RSS window, so older history requires a different source.
-3. Select **Use this review** to populate the editor's title, year, date, rating, and review text. Upload poster artwork separately if you want it in the exported image; this avoids relying on cross-origin poster downloads.
-4. A free CORS relay is used because GitHub Pages is a static host and browser requests to Letterboxd may be blocked by CORS. This is for public GET data only. No Letterboxd password or private account data is requested.
+1. Enter a public Letterboxd username or profile URL.
+2. Framix requests every page from a public paginated films catalogue and keeps films with a member rating. It does not impose its own result-count limit.
+3. Framix optionally matches entries from the public RSS feed to add review text and dates.
+4. Choose **Use review** to move a film's title, rating, year and available review text into the poster editor.
 
-The automatic feed is based on Letterboxd's public RSS contents, so it can only show entries present in the feed and accessible through the public relay.
+The paginated catalogue is an unofficial public service and may be rate-limited or unavailable. Framix tries a direct request first, then public relays; if the catalogue is unavailable it may show only the smaller recent RSS results, and labels that fallback clearly.
 
 ## Deploy
 
-The `.github/workflows/deploy-pages.yml` workflow deploys the repository root to GitHub Pages on pushes to `main`. Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the root.
-
-The `api/reviews.js` and `api/serializd.js` routes run as Vercel serverless functions. Letterboxd's existing frontend can still use its public RSS relay on GitHub Pages, but **automatic Serializd importing requires the Vercel deployment** because GitHub Pages cannot run server-side API routes. Import the repo at [Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDostovinchi%2Freelnote-review-cards) and use that Vercel URL on desktop or mobile.
+The `.github/workflows/deploy-pages.yml` workflow deploys the repository root to GitHub Pages on pushes to `main`. Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the root. The browser importer uses public Letterboxd data; `api/reviews.js` is retained for optional Vercel hosting.
 
 ## Security
 
@@ -59,24 +57,16 @@ The poster editor includes a TMDB title search for movies and TV series. Get you
 Theme collections:
 - **Framix · General** — Noir, Midnight, Ember, Archive.
 - **Letterboxd** — Green, Red, Blue, Gold inspired card palettes.
-- **Serializd** — Violet, Pink, Cyan, Lime TV-diary palettes.
 
 TMDB search needs your own API key; manual uploads and poster export remain available without it. Check TMDB's current API terms for eligibility and use restrictions.
 
 
 ## Automatic poster selection and Instagram Story export
 
-When a Letterboxd review is selected, Framix automatically searches TMDB using the review title and release year. When a Serializd diary entry is selected, it searches TV titles first. The closest matching result is selected automatically only when the title looks like a reasonable match. The selected title's TMDB Images endpoint is then used to show its available poster-variant list; choose any thumbnail to replace the poster. If the key is saved after selecting a review, Framix re-runs the lookup for the current title.
+When a rated film is selected, Framix automatically searches TMDB using the title and release year. The closest matching result is selected automatically only when the title looks like a reasonable match. The selected title's TMDB Images endpoint is then used to show its available poster-variant list; choose any thumbnail to replace the poster. If the key is saved after selecting a review, Framix re-runs the lookup for the current title.
 
 TMDB documents the per-title poster/image endpoint for movies and TV, and image.tmdb.org URLs are built from the returned file paths. See the [TMDB movie images API](https://developer.themoviedb.org/reference/movie-images), [image URL basics](https://developer.themoviedb.org/docs/image-basics), and [application authentication](https://developer.themoviedb.org/docs/authentication-application).
 
 The exported canvas is **1080 × 1920 px (9:16)**, matching Instagram Story dimensions. The download filename starts with framix-story-. The story layout uses adjusted top/bottom safe margins; review content may still need trimming if a particularly long note is used.
 
 The API key is kept in this browser's local storage. Treat it like a personal credential and avoid sharing it in screenshots or public issue reports. Automatic selection depends on network access and TMDB's match quality. If TMDB has no poster for a title or its API is unavailable, the editor remains usable with your own upload.
-
-
-## Serializd: direct, file-free import
-
-The Serializd form calls `/api/serializd?username=...`. This Vercel serverless function fetches the user's public diary from Serializd with the same request headers used by community Serializd clients. It does not ask for a password or store account credentials. The route returns up to 50 recent public entries and caches public results briefly. The frontend reads those entries directly into the card maker without downloading an intermediate file.
-
-**Important:** this route needs a server runtime. It will not run on GitHub Pages. Deploy this repository to Vercel and use the Vercel-hosted URL for direct imports on mobile: [Deploy Framix](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDostovinchi%2Freelnote-review-cards). If Serializd itself changes or blocks its unofficial API, the endpoint will report that error rather than silently return an empty import.
