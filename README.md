@@ -43,7 +43,7 @@ The automatic feed is based on Letterboxd's public RSS contents, so it can only 
 
 The `.github/workflows/deploy-pages.yml` workflow deploys the repository root to GitHub Pages on pushes to `main`. Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the root.
 
-The `api/reviews.js` and `vercel.json` files are retained for optional Vercel hosting, but the new importer does **not** depend on Vercel.
+The `api/reviews.js` and `api/serializd.js` routes run as Vercel serverless functions. Letterboxd's existing frontend can still use its public RSS relay on GitHub Pages, but **automatic Serializd importing requires the Vercel deployment** because GitHub Pages cannot run server-side API routes. Import the repo at [Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDostovinchi%2Freelnote-review-cards) and use that Vercel URL on desktop or mobile.
 
 ## Security
 
@@ -78,3 +78,10 @@ The API key is kept in this browser's local storage. Treat it like a personal cr
 ## Serializd import
 
 GitHub Pages is a static host, so it cannot reliably send Serializd's API request headers from the Framix page. The Serializd card includes a link to `serializd-export.html`, a browser bookmarklet helper. Save the helper link to the browser bookmarks bar, open Serializd, and run it from a Serializd page to download recent diary entries as JSON. Then choose that file in Framix's local JSON/CSV import control. The file is parsed in the browser and is not uploaded. If Serializd rejects the public call, the helper offers sign-in and submits credentials directly to Serializd's API over HTTPS; it does not send them to Framix or a public CORS proxy. Review the bookmarklet source before using it.
+
+
+## Serializd: direct, file-free import
+
+The Serializd form calls `/api/serializd?username=...`. This Vercel serverless function fetches the user's public diary from Serializd with the same request headers used by community Serializd clients. It does not ask for a password or store account credentials. The route returns up to 12 recent public entries and caches public results briefly. The frontend reads those entries directly into the card maker without downloading an intermediate file.
+
+**Important:** this route needs a server runtime. It will not run on GitHub Pages. Deploy this repository to Vercel and use the Vercel-hosted URL for direct imports on mobile: [Deploy Framix](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDostovinchi%2Freelnote-review-cards). If Serializd itself changes or blocks its unofficial API, the endpoint will report that error rather than silently return an empty import.
