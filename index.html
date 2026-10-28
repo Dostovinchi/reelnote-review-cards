@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028e"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028b" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028e"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028c" defer></script></head>
 <body><header class="topbar">
   <a class="brand" href="#top" aria-label="Framix home"><span class="brand-mark">f.</span><span>framix</span></a>
   <nav aria-label="Main navigation"><a href="#connect">Connect diary</a><a href="#studio">Poster studio</a></nav>
@@ -42,13 +42,13 @@
       <p id="lbStatus" class="connection-status" role="status" aria-live="polite">Public RSS only. No Letterboxd password needed.</p><div id="lbReviews" class="review-results" aria-live="polite"></div>
     </article>
     <article class="connect-card">
-      <div class="service-head"><span class="service-icon serializd-icon">sz</span><div><h3>Serializd</h3><p>Save your public profile and check for diary entries.</p></div></div>
-      <form id="serializdForm" class="connection-form"><label for="serializdUsername">USERNAME OR PUBLIC PROFILE URL</label><div class="input-action"><input id="serializdUsername" type="text" autocomplete="off" maxlength="180" placeholder="Serializd username or profile URL" required><button id="serializdLoad" class="button primary" type="submit">Load diary ↗</button></div></form>
+      <div class="service-head"><span class="service-icon serializd-icon">sz</span><div><h3>Serializd</h3><p>Use the secure local export helper if public diary access is blocked.</p></div></div>
+      <form id="serializdForm" class="connection-form"><label for="serializdUsername">USERNAME OR PUBLIC PROFILE URL</label><div class="input-action"><input id="serializdUsername" type="text" autocomplete="off" maxlength="180" placeholder="Serializd username or profile URL" required><button id="serializdLoad" class="button primary" type="submit">Open import helper ↗</button></div></form>
       <p id="serializdStatus" class="connection-status" role="status" aria-live="polite">Public diary access may require sign-in; use the optional sign-in or JSON/CSV import below if needed.</p>
       <a id="serializdProfileLink" class="profile-link" href="https://www.serializd.com/" target="_blank" rel="noopener noreferrer" hidden>Open Serializd profile ↗</a>
       <div class="serializd-helper-callout" id="serializdHelperCallout">
         <strong>Fix Serializd import</strong>
-        <p>Serializd rejects requests from this static page. The helper runs on Serializd's own site, downloads your diary as JSON, and lets Framix import it locally. It does not send your password to Framix or a public proxy.</p>
+        <p>The current public import path returns HTTP 401. The helper runs on Serializd's own site, downloads your diary as JSON, and lets Framix import it locally. It does not send your password to Framix or a public proxy.</p>
         <a id="serializdHelperLink" class="button quiet serializd-helper-link" href="serializd-export.html">Open Serializd Export Helper ↗</a>
       </div>
       <div class="serializd-file-import">
