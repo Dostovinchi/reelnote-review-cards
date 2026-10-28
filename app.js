@@ -776,4 +776,9 @@ buildStyleChips();
 syncThemeOptions(false);
 const lb=safeStore.get("framix.lb"),sz=safeStore.get("framix.sz");if(lb)$("#lbUsername").value=lb;if(sz){$("#serializdUsername").value=sz;$("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(sz);$("#serializdProfileLink").textContent="Open @"+sz+" on Serializd ↗";$("#serializdProfileLink").hidden=false}
 paint();configureAuth();
+if(location.hostname.endsWith("github.io")){
+  const note=$("#serializdHostNote");
+  if(note)note.hidden=false;
+  status("#serializdStatus","Direct Serializd import needs the Vercel server API. This GitHub Pages link is static; deploy Framix once to Vercel, then use its URL on mobile.","error");
+}
 })();
