@@ -634,6 +634,8 @@ function buildStyleChips(){
 
 /* ---------- Diary connections (public RSS / diary endpoints) ---------- */
 let client=null,authMode="signin",letterboxdReviews=[],lastReviewMediaHint="movie";
+const LB_PAGE_SIZE=24;
+let lbVisible=[],lbPage=0,lbQuery="";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
 function plain(raw){const d=new DOMParser().parseFromString("<!doctype html><html><body>"+String(raw||"")+"</body></html>","text/html");d.querySelectorAll("script,style,img").forEach(n=>n.remove());d.querySelectorAll("br").forEach(n=>n.replaceWith(document.createTextNode("\n")));return(d.body.textContent||"").replace(/\u00a0/g," ").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
@@ -653,6 +655,7 @@ function parseRSS(text,username){
 async function relay(url,valid){
   let lastError=null;
   const enc=encodeURIComponent,base=proxyBase();
+  const looksBlocked=text=>/just a moment|cf-browser-verification|attention required|enable javascript and cookies/i.test(text);
   const targets=[];
   if(base)targets.push(base+"/?url="+enc(url));
   targets.push(
@@ -666,9 +669,16 @@ async function relay(url,valid){
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
       try{
         const response=await fetch(target,{credentials:"omit",signal:controller.signal,cache:"no-store"});
-        if(!response.ok)throw Error("HTTP "+response.status);
         const body=await response.text();
-        if(valid&&!valid(body))throw Error("unexpected content");
+        if(!response.ok||(valid&&!valid(body))){
+          if(looksBlocked(body)){
+            lastError=Error("blocked");
+            window.relayLog.push(host+":challenge");
+            break;
+          }
+          if(!response.ok)throw Error("HTTP "+response.status);
+          throw Error("unexpected content");
+        }
         window.relayLog.push(host+":ok");
         return body;
       }finally{clearTimeout(timer)}
@@ -699,32 +709,59 @@ async function fetchPublicText(url,valid,label){
     throw Error(label+" unavailable from the browser and public relays. "+(relayError?.message||directError?.message||"Try again later."));
   }
 }
-function renderLB(rows){
-  const grid=$("#lbReviews");
-  if(!rows.length){
+function lbFiltered(){
+  const query=normalizeTitle(lbQuery);
+  if(!query)return letterboxdReviews;
+  const tokens=query.split(" ").filter(Boolean);
+  return letterboxdReviews.filter(review=>{
+    const hay=normalizeTitle(review.title+" "+String(review.year||""));
+    return tokens.every(token=>hay.includes(token));
+  });
+}
+function lbCard(review,index){
+  const card=document.createElement("article");card.className="lb-review-card";
+  const content=document.createElement("div");content.className="lb-review-content";
+  const meta=document.createElement("div");meta.className="lb-review-meta";
+  const date=document.createElement("span");date.textContent=review.date||(review.text?"REVIEW":"RATED");
+  const stars=document.createElement("span");stars.className="lb-stars";
+  stars.textContent=review.rating===null?"—":("★".repeat(Math.floor(review.rating))+(review.rating%1?"½":"")+" "+review.rating.toFixed(1));
+  meta.append(date,stars);
+  const title=document.createElement("h4");title.textContent=review.title;
+  content.append(meta,title);
+  if(review.year){const year=document.createElement("p");year.className="lb-year";year.textContent=review.year;content.append(year)}
+  if(review.text){const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=review.text;content.append(excerpt)}
+  const actions=document.createElement("div");actions.className="lb-review-actions";
+  const link=document.createElement("a");link.href=review.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Letterboxd ↗";
+  const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=index;use.textContent="Use review";
+  actions.append(link,use);card.append(content,actions);
+  return card;
+}
+function renderLBPage(){
+  const grid=$("#lbReviews"),toolbar=$("#lbToolbar");
+  const list=lbFiltered();
+  const pageCount=Math.max(1,Math.ceil(list.length/LB_PAGE_SIZE));
+  lbPage=Math.max(0,Math.min(pageCount-1,lbPage));
+  lbVisible=list.slice(lbPage*LB_PAGE_SIZE,(lbPage+1)*LB_PAGE_SIZE);
+  if(toolbar)toolbar.hidden=!letterboxdReviews.length;
+  const count=$("#lbCount"),info=$("#lbPageInfo"),prev=$("#lbPrev"),next=$("#lbNext");
+  if(count)count.textContent=list.length===letterboxdReviews.length?letterboxdReviews.length+" films":list.length+" of "+letterboxdReviews.length+" films";
+  if(info)info.textContent=(lbPage+1)+" / "+pageCount;
+  if(prev)prev.disabled=lbPage<=0;
+  if(next)next.disabled=lbPage>=pageCount-1;
+  grid.replaceChildren();
+  if(!lbVisible.length){
     const p=document.createElement("p");p.className="lb-empty";
-    p.textContent="No rated films found for this profile.";
-    grid.replaceChildren(p);return;
+    p.textContent=letterboxdReviews.length?"No film matches “"+lbQuery.trim()+"”.":"No rated films found for this profile.";
+    grid.append(p);return;
   }
   const fragment=document.createDocumentFragment();
-  rows.forEach((r,i)=>{
-    const card=document.createElement("article");card.className="lb-review-card";
-    const content=document.createElement("div");content.className="lb-review-content";
-    const meta=document.createElement("div");meta.className="lb-review-meta";
-    const date=document.createElement("span");date.textContent=r.date||(r.text?"REVIEW":"RATED");
-    const stars=document.createElement("span");stars.className="lb-stars";
-    stars.textContent=r.rating===null?"—":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));
-    meta.append(date,stars);
-    const title=document.createElement("h4");title.textContent=r.title;
-    content.append(meta,title);
-    if(r.year){const year=document.createElement("p");year.className="lb-year";year.textContent=r.year;content.append(year)}
-    if(r.text){const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text;content.append(excerpt)}
-    const actions=document.createElement("div");actions.className="lb-review-actions";
-    const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Letterboxd ↗";
-    const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use review";
-    actions.append(link,use);card.append(content,actions);fragment.append(card);
-  });
-  grid.replaceChildren(fragment);
+  lbVisible.forEach((review,index)=>fragment.append(lbCard(review,index)));
+  grid.append(fragment);
+}
+function renderLB(rows){
+  letterboxdReviews=rows;
+  lbPage=0;
+  renderLBPage();
 }
 function ratingValue(raw){
   if(raw===null||raw===undefined||raw==="")return null;
@@ -808,25 +845,26 @@ function parseMemberFilmsPage(markup,username,pageNumber){
     return{guid:"letterboxd-rating-"+slug,slug,title,year:String(yearFromName||yearFromSlug),date:"",rating,text:"",url,isReview:false,isDiaryEntry:true};
   }).filter(item=>item.title&&item.rating!==null);
   const pageNumbers=[];
-  for(const node of doc.querySelectorAll(".paginate-page, a[href*='/films/page/']")){
+  for(const node of doc.querySelectorAll(".paginate-page, a[href*='/films/'][href*='/page/']")){
     const textValue=String(node.textContent||"").trim();
     const number=Number(textValue);
     if(Number.isInteger(number)&&number>0)pageNumbers.push(number);
     const href=node.getAttribute?.("href")||"";
-    const match=href.match(/\/films\/page\/(\d+)/);
+    const match=href.match(/\/films\/(?:by\/rated-date\/)?page\/(\d+)/);
     if(match)pageNumbers.push(Number(match[1]));
   }
-  const lastPageLink=doc.querySelector("a[rel='last'][href*='/films/page/'], a.paginate-last[href*='/films/page/']");
-  const lastMatch=(lastPageLink?.getAttribute("href")||"").match(/\/films\/page\/(\d+)/);
+  const lastPageLink=doc.querySelector("a[rel='last'][href*='/page/'], a.paginate-last[href*='/page/']");
+  const lastMatch=(lastPageLink?.getAttribute("href")||"").match(/\/films\/(?:by\/rated-date\/)?page\/(\d+)/);
   if(lastMatch)pageNumbers.push(Number(lastMatch[1]));
   const totalPages=Math.max(1,...pageNumbers);
   return{films,totalPages,page:pageNumber};
 }
-async function fetchMemberFilmsPage(username,pageNumber,attempt=0){
-  const path=pageNumber===1
-    ?"/"+encodeURIComponent(username)+"/films/"
-    :"/"+encodeURIComponent(username)+"/films/page/"+pageNumber+"/";
-  const target="https://letterboxd.com"+path;
+function filmsPath(username,pageNumber,mode){
+  const base="/"+encodeURIComponent(username)+"/films/"+(mode==="rated"?"by/rated-date/":"");
+  return pageNumber===1?base:base+"page/"+pageNumber+"/";
+}
+async function fetchMemberFilmsPage(username,pageNumber,attempt=0,mode="rated"){
+  const target="https://letterboxd.com"+filmsPath(username,pageNumber,mode);
   try{
     const body=await relay(target,markup=>/<html/i.test(markup)&&/film-poster|poster-container|griditem/i.test(markup));
     return parseMemberFilmsPage(body,username,pageNumber);
@@ -834,7 +872,7 @@ async function fetchMemberFilmsPage(username,pageNumber,attempt=0){
     const detail=String(error?.message||"Public page unavailable");
     if(attempt<1&&/403|429|blocking|blocked|timeout|failed/i.test(detail)){
       await new Promise(resolve=>setTimeout(resolve,900));
-      return fetchMemberFilmsPage(username,pageNumber,attempt+1);
+      return fetchMemberFilmsPage(username,pageNumber,attempt+1,mode);
     }
     if(/403|401|cloudflare|access denied|attention required|just a moment/i.test(detail)){
       throw Error("Letterboxd is blocking public access from this network right now.");
@@ -845,7 +883,9 @@ async function fetchMemberFilmsPage(username,pageNumber,attempt=0){
 }
 async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
   onProgress("Loading your ratings…");
-  const first=await fetchMemberFilmsPage(username,1);
+  let mode="rated",first;
+  try{first=await fetchMemberFilmsPage(username,1,1,mode)}
+  catch(error){mode="default";first=await fetchMemberFilmsPage(username,1,0,mode)}
   const totalPages=Math.max(1,Number(first.totalPages)||1);
   const pages=[first];
   let failed=0;
@@ -853,7 +893,7 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
     const batch=[];
     for(let n=page;n<Math.min(page+2,totalPages+1);n++)batch.push(n);
     onProgress("Loading ratings · page "+batch[0]+(batch.length>1?"–"+batch[batch.length-1]:"")+" of "+totalPages);
-    const settled=await Promise.allSettled(batch.map(n=>fetchMemberFilmsPage(username,n)));
+    const settled=await Promise.allSettled(batch.map(n=>fetchMemberFilmsPage(username,n,0,mode)));
     settled.forEach(result=>result.status==="fulfilled"?pages.push(result.value):failed++);
     if(page+2<=totalPages)await new Promise(resolve=>setTimeout(resolve,120));
   }
@@ -864,7 +904,7 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
       if(!byKey.has(key))byKey.set(key,film);
     }
   }
-  return{films:[...byKey.values()],totalPages,failed};
+  return{films:[...byKey.values()],totalPages,failed,mode};
 }
 function mergeRSSReviewText(ratedFilms,rssEntries){
   const bySlug=new Map(),byTitleYear=new Map();
@@ -882,6 +922,8 @@ async function loadLB(e){
   e.preventDefault();
   const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");
   if(!username){status("#lbStatus","Enter your Letterboxd username.","error");return}
+  lbQuery="";lbPage=0;
+  const searchField=$("#lbSearch");if(searchField)searchField.value="";
   button.disabled=true;button.textContent="Loading…";
   status("#lbStatus","Finding your recent ratings…");
   safeStore.set("framix.lb",username);
@@ -900,10 +942,16 @@ async function loadLB(e){
   try{
     const result=await ratingsPromise;
     letterboxdReviews=mergeRSSReviewText(result.films,rssEntries);
+    if(result.mode!=="rated"){
+      const dated=letterboxdReviews.filter(review=>review.date).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+      const undated=letterboxdReviews.filter(review=>!review.date);
+      letterboxdReviews=[...dated,...undated];
+    }
     renderLB(letterboxdReviews);
     const partial=result.failed?" ("+result.failed+" page"+(result.failed===1?"":"s")+" skipped)":"";
+    const order=result.mode!=="rated"&&rssEntries.length?" · recent ratings first":"";
     status("#lbStatus",letterboxdReviews.length
-      ?"Loaded "+letterboxdReviews.length+" rated films"+partial+"."
+      ?"Loaded "+letterboxdReviews.length+" rated films"+partial+order+"."
       :"No rated films found. Make sure the profile is public.",
       letterboxdReviews.length?"success":"error");
   }catch(error){
@@ -991,9 +1039,17 @@ $("#downloadCard").addEventListener("click",()=>{
 });
 $("#letterboxdForm").addEventListener("submit",loadLB);
 $("#lbLoad").addEventListener("click",e=>{e.preventDefault();void loadLB({preventDefault(){}})});
+$("#lbSearch").addEventListener("input",event=>{lbQuery=event.target.value;lbPage=0;renderLBPage()});
+$("#lbPrev").addEventListener("click",()=>{if(lbPage>0){lbPage--;renderLBPage()}});
+$("#lbNext").addEventListener("click",()=>{lbPage++;renderLBPage()});
+$("#lbToolbar").addEventListener("keydown",event=>{
+  if(event.target.id==="lbSearch")return;
+  if(event.key==="ArrowLeft"){event.preventDefault();if(lbPage>0){lbPage--;renderLBPage()}}
+  else if(event.key==="ArrowRight"){event.preventDefault();lbPage++;renderLBPage()}
+});
 $("#lbReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-review-index]");if(!button)return;
- const review=letterboxdReviews[Number(button.dataset.reviewIndex)];if(!review)return;
+ const review=lbVisible[Number(button.dataset.reviewIndex)];if(!review)return;
  $("#filmTitle").value=review.title.slice(0,100);
  $("#filmYear").value=[review.year,review.date?"Watched "+review.date:""].filter(Boolean).join(" · ").slice(0,60);
  if(review.rating!==null){

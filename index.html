@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028l"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028s" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028m"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028t" defer></script></head>
 <body><header class="topbar">
   <a class="brand" href="#top" aria-label="Framix home"><span class="brand-mark">f.</span><span>framix</span></a>
   <nav aria-label="Main navigation"><a href="#connect">Ratings</a><a href="#studio">Poster studio</a></nav>
@@ -48,6 +48,11 @@
         </div>
       </form>
       <p id="lbStatus" class="connection-status" role="status" aria-live="polite">Enter a public profile to begin.</p>
+      <div id="lbToolbar" class="lb-toolbar" hidden>
+        <input id="lbSearch" type="search" placeholder="Search a film by name…" aria-label="Search rated films" autocomplete="off">
+        <span id="lbCount" class="lb-count"></span>
+        <div class="lb-pager"><button id="lbPrev" class="button quiet" type="button" aria-label="Previous page">‹</button><span id="lbPageInfo" class="lb-page-info">1 / 1</span><button id="lbNext" class="button quiet" type="button" aria-label="Next page">›</button></div>
+      </div>
       <div id="lbReviews" class="review-results" aria-live="polite"></div>
     </article>
   </div>

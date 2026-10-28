@@ -33,9 +33,11 @@ Until those project-specific steps are done, the sign-in dialog intentionally ex
 ## Letterboxd imports
 
 1. Enter a public Letterboxd username or profile URL.
-2. Framix reads the user's public paginated `/films/` grid through a relay, extracts the member's rating from each poster's `rated-*` class, and continues through every page. The parser targets Letterboxd's current markup (`li.griditem`, `data-item-slug`, `.poster-viewingdata .rating`).
+2. Framix reads the user's public `/films/by/rated-date/` view (newest rated first), extracts the member's rating from each poster's `rated-*` class, and continues through every page. Letterboxd requires browser-like `Accept-Language` headers for that sorted view, so it works through the Worker or another relay that forwards them; otherwise Framix falls back to the default `/films/` grid and lists recent RSS-dated ratings first. The parser targets Letterboxd's current markup (`li.griditem`, `data-item-slug`, `.poster-viewingdata .rating`).
 3. Framix optionally matches entries from the public RSS feed to add review text and dates.
 4. Choose **Use review** to move a film's title, rating, year and available review text into the poster editor.
+
+Search the loaded ratings by film name and move between pages with the arrows (24 films per page).
 
 The paginated catalogue is an unofficial public service and may be rate-limited, bot-protected, or unavailable. Framix tries a configured proxy first, then public relays, retries a failed page once, and keeps the pages it did get instead of discarding the whole shelf. If every page fails it may show only the smaller recent RSS results.
 

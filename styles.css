@@ -284,4 +284,13 @@ dialog{border:0;border-radius:25px;background:#1a1c1f}.poster-carousel-viewport,
 .backdrop-reset{width:auto;margin:10px 0 0 26px}
 .tmdb-backdrop-options-wrap{margin-top:14px}
 @media(max-width:720px){.backdrop-carousel{padding-inline:24px}.backdrop-carousel .poster-carousel-viewport{height:170px}.backdrop-carousel .poster-slide{padding:8px 20px}.backdrop-carousel .slide-frame{max-width:100%}.backdrop-carousel .poster-slide figcaption{max-width:100%;font-size:8px}.backdrop-reset{margin-left:24px}}
+.lb-toolbar{display:flex;align-items:center;gap:9px;margin-top:13px}
+.lb-toolbar input{flex:1;min-width:0;background:#20201c;border:1px solid var(--line);color:var(--ink);padding:10px 12px;font-size:12px}
+.lb-toolbar input:focus{outline:none;border-color:var(--accent)}
+.lb-count{font:10px var(--mono);color:var(--muted);white-space:nowrap}
+.lb-pager{display:flex;align-items:center;gap:5px}
+.lb-pager .button{min-height:36px;padding:6px 12px;font-size:15px;line-height:1}
+.lb-pager .button:disabled{opacity:.35;cursor:default;transform:none}
+.lb-page-info{font:10px var(--mono);color:var(--muted);min-width:52px;text-align:center;white-space:nowrap}
+@media(max-width:720px){.lb-toolbar{flex-wrap:wrap}.lb-toolbar input{flex:1 1 100%}.lb-count{margin-right:auto}}
 
