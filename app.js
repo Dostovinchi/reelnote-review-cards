@@ -628,12 +628,125 @@ function parseRSS(text,username){
     let url="https://letterboxd.com/"+encodeURIComponent(username)+"/";
     try{const u=new URL(link);if(u.protocol==="https:"&&u.hostname==="letterboxd.com")url=u.href}catch{}
     const description=isReview?plain(rssTag(item,"description")).replace(/^Watched on\s+[^\n]+$/i,"").trim():"";
-    return{guid,title,year:rssTag(item,"filmYear"),date:rssTag(item,"watchedDate")||rssTag(item,"pubDate").slice(0,10),rating,text:description,url,isReview,isDiaryEntry};
+    return{guid,slug:filmSlugFromUrl(link),title,year:rssTag(item,"filmYear"),date:rssTag(item,"watchedDate")||rssTag(item,"pubDate").slice(0,10),rating,text:description,url,isReview,isDiaryEntry};
   }).filter(x=>x.title&&x.isDiaryEntry&&(x.isReview||x.rating!==null));
 }
 async function relay(url,valid){let last;const enc=encodeURIComponent;const targets=["https://api.allorigins.win/raw?url="+enc(url),"https://api.codetabs.com/v1/proxy/?quest="+enc(url),"https://corsproxy.io/?url="+enc(url),"https://proxy.cors.dev/"+url];for(const target of targets){try{const c=new AbortController(),timer=setTimeout(()=>c.abort(),12000);try{const r=await fetch(target,{credentials:"omit",signal:c.signal});if(!r.ok)throw Error("HTTP "+r.status);const body=await r.text();if(valid&&!valid(body))throw Error("Unexpected response from relay");return body}finally{clearTimeout(timer)}}catch(e){last=e}}throw last||Error("All public relays failed")}
 function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="lb-empty";p.textContent="No recent diary entries with a rating or written review were found in the public RSS feed.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="lb-review-card";const meta=document.createElement("div");meta.className="lb-review-meta";const date=document.createElement("span");date.textContent=r.date||"PUBLIC REVIEW";const stars=document.createElement("span");stars.className="lb-stars";stars.textContent=r.rating===null?"UNRATED":("★".repeat(Math.floor(r.rating))+(r.rating%1?"½":"")+" "+r.rating.toFixed(1));meta.append(date,stars);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="lb-year";year.textContent=r.year||"LETTERBOXD";const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=r.text||"★ Rating only · No written review.";const actions=document.createElement("div");actions.className="lb-review-actions";const link=document.createElement("a");link.href=r.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Letterboxd ↗";const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=i;use.textContent="Use this entry";actions.append(link,use);card.append(meta,title,year,excerpt,actions);grid.append(card)})}
-async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading recent diary entries…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent diary entries (reviews and ratings) for @"+username+".":"No rated or reviewed diary entries found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed: "+(err?.message||"public relay unavailable")+". Check the username and retry.","error");console.warn("Letterboxd import failed",err)}finally{button.disabled=false}}
+function ratingValue(raw){
+  if(raw===null||raw===undefined||raw==="")return null;
+  const value=Number(raw);
+  return Number.isFinite(value)&&value>=0.5&&value<=5?value:null;
+}
+function normalizeFilmKey(value){
+  return String(value||"").normalize("NFKD").replace(/\\p{Diacritic}/gu,"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+}
+function filmSlugFromUrl(value){
+  try{
+    const u=new URL(value);
+    if(u.hostname!=="letterboxd.com"&&!u.hostname.endsWith(".letterboxd.com"))return "";
+    const match=u.pathname.match(/\\/film\\/([^/]+)/i);
+    return match?match[1].toLowerCase():"";
+  }catch{return ""}
+}
+function normalizeRatingApiFilm(item){
+  const title=String(item.name||item.title||item.film_title||"").trim();
+  const rating=ratingValue(item.member_rating??item.memberRating??item.user_rating??item.rating);
+  const slug=String(item.slug||item.film_slug||filmSlugFromUrl(item.link||item.url)||"").trim();
+  const rawUrl=String(item.link||item.url||"");
+  let url=slug?"https://letterboxd.com/film/"+encodeURIComponent(slug)+"/":"https://letterboxd.com/";
+  try{const u=new URL(rawUrl);if(u.protocol==="https:"&&u.hostname==="letterboxd.com")url=u.href}catch{}
+  return{
+    guid:"letterboxd-rating-"+(slug||normalizeFilmKey(title)),
+    slug,title,year:String(item.year||item.release_year||""),
+    date:String(item.rated_date||item.date_rated||item.date||"").slice(0,10),
+    rating,text:"",url,isReview:false,isDiaryEntry:true
+  };
+}
+async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
+  const endpoint="https://letterboxd-scraper.omkar.cloud/letterboxd/members/films";
+  const fetchPage=async(page)=>{
+    const url=endpoint+"?member="+encodeURIComponent(username)+"&sort=rated&page="+page;
+    const body=await relay(url,text=>{
+      try{
+        const data=JSON.parse(text);
+        return data&&Array.isArray(data.films)&&Number.isFinite(Number(data.current_page))&&Number.isFinite(Number(data.total_pages));
+      }catch{return false}
+    });
+    let data;try{data=JSON.parse(body)}catch{throw Error("The ratings service returned invalid JSON on page "+page+".")}
+    if(!Array.isArray(data.films))throw Error("The ratings service returned an unsupported page format.");
+    return data;
+  };
+  const first=await fetchPage(1);
+  const totalPages=Math.max(1,Math.floor(Number(first.total_pages)||1));
+  const pages=[first];
+  for(let page=2;page<=totalPages;page+=3){
+    const batch=[];
+    for(let n=page;n<Math.min(page+3,totalPages+1);n++)batch.push(n);
+    onProgress("Loading all rated films… page "+batch[0]+"–"+batch[batch.length-1]+" of "+totalPages);
+    const next=await Promise.all(batch.map(fetchPage));
+    pages.push(...next);
+  }
+  const byKey=new Map();
+  for(const data of pages){
+    for(const item of data.films){
+      const normalized=normalizeRatingApiFilm(item);
+      if(!normalized.title||normalized.rating===null)continue;
+      const key=normalized.slug||normalizeFilmKey(normalized.title+"-"+normalized.year);
+      if(!byKey.has(key))byKey.set(key,normalized);
+    }
+  }
+  return {films:[...byKey.values()],totalPages,totalWatched:pages.reduce((n,p)=>n+(Array.isArray(p.films)?p.films.length:0),0)};
+}
+function mergeRSSReviewText(ratedFilms,rssEntries){
+  const bySlug=new Map(),byTitleYear=new Map();
+  for(const entry of rssEntries||[]){
+    const slug=entry.slug||filmSlugFromUrl(entry.url);
+    if(slug)bySlug.set(slug,entry);
+    byTitleYear.set(normalizeFilmKey(entry.title)+"-"+String(entry.year||""),entry);
+  }
+  return ratedFilms.map(film=>{
+    const fromRSS=(film.slug&&bySlug.get(film.slug))||byTitleYear.get(normalizeFilmKey(film.title)+"-"+String(film.year||""));
+    return fromRSS?{...film,text:fromRSS.text||"",date:fromRSS.date||film.date||"",guid:film.guid||fromRSS.guid}:film;
+  });
+}
+async function loadLB(e){
+  e.preventDefault();
+  const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");
+  if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}
+  button.disabled=true;
+  status("#lbStatus","Connecting to the public ratings catalogue…");
+  safeStore.set("framix.lb",username);
+  try{
+    const result=await fetchRatedLetterboxdFilms(username,message=>status("#lbStatus",message));
+    let rssEntries=[];
+    try{
+      const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\\s>]/i.test(x)&&/<channel[\\s>]/i.test(x));
+      rssEntries=parseRSS(xml,username);
+    }catch(error){console.warn("Optional Letterboxd RSS review enrichment failed",error)}
+    letterboxdReviews=mergeRSSReviewText(result.films,rssEntries);
+    renderLB(letterboxdReviews);
+    status("#lbStatus",letterboxdReviews.length
+      ?"Loaded all "+letterboxdReviews.length+" rated films for @"+username+". "+(rssEntries.length?"Added available review text from the public RSS feed.":"")
+      :"No rated films were returned for @"+username+". Check that the profile is public or try again.",
+      letterboxdReviews.length?"success":"error");
+  }catch(err){
+    /* Keep the old RSS importer as a fallback, but label its limited coverage honestly. */
+    try{
+      const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\\s>]/i.test(x)&&/<channel[\\s>]/i.test(x));
+      letterboxdReviews=parseRSS(xml,username);
+      renderLB(letterboxdReviews);
+      status("#lbStatus",letterboxdReviews.length
+        ?"The full ratings service was unavailable. Showing "+letterboxdReviews.length+" recent RSS entries only; this is not your complete ratings list."
+        :"Could not load all rated films, and no recent RSS entries were found. "+(err?.message||"Ratings service unavailable."),
+        "error");
+    }catch(rssError){
+      letterboxdReviews=[];renderLB([]);
+      status("#lbStatus","Could not load the full ratings list: "+(err?.message||"ratings service unavailable")+". RSS fallback also failed: "+(rssError?.message||"unavailable")+".","error");
+    }
+    console.warn("Letterboxd full ratings import failed",err);
+  }finally{button.disabled=false}
+}
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
 function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No diary entries loaded yet. Sign in with Serializd below, or choose a JSON/CSV export from your device.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
 function showSerializdRows(rows,username,source="Serializd"){
