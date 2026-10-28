@@ -641,7 +641,9 @@ async function loadSZ(e){
   $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
   $("#serializdProfileLink").hidden=false;
   if(location.hostname.endsWith("github.io")){
-    status("#serializdStatus","This GitHub Pages copy cannot run the secure Serializd API. Open the Vercel deployment of Framix to import directly on mobile; no file is needed.","error");
+    const note=$("#serializdHostNote");if(note)note.hidden=false;
+    status("#serializdStatus","This GitHub Pages address cannot run the Serializd server endpoint. Use the Vercel version for direct, file-free import.","error");
+    note?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
     return;
   }
   button.disabled=true;
@@ -735,7 +737,7 @@ $("#lbReviews").addEventListener("click",event=>{
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
 
-$("#serializdLoad").addEventListener("click",e=>{e.preventDefault();void loadSZ({preventDefault(){}})});
+
 $("#serializdReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-serializd-index]");if(!button)return;
  const review=serializdReviews[Number(button.dataset.serializdIndex)];if(!review)return;
