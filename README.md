@@ -73,3 +73,8 @@ TMDB documents the per-title poster/image endpoint for movies and TV, and image.
 The exported canvas is **1080 × 1920 px (9:16)**, matching Instagram Story dimensions. The download filename starts with framix-story-. The story layout uses adjusted top/bottom safe margins; review content may still need trimming if a particularly long note is used.
 
 The API key is kept in this browser's local storage. Treat it like a personal credential and avoid sharing it in screenshots or public issue reports. Automatic selection depends on network access and TMDB's match quality. If TMDB has no poster for a title or its API is unavailable, the editor remains usable with your own upload.
+
+
+## Serializd import
+
+GitHub Pages is a static host, so it cannot reliably send Serializd's API request headers from the Framix page. The Serializd card includes a link to `serializd-export.html`, a browser bookmarklet helper. Save the helper link to the browser bookmarks bar, open Serializd, and run it from a Serializd page to download recent diary entries as JSON. Then choose that file in Framix's local JSON/CSV import control. The file is parsed in the browser and is not uploaded. If Serializd rejects the public call, the helper offers sign-in and submits credentials directly to Serializd's API over HTTPS; it does not send them to Framix or a public CORS proxy. Review the bookmarklet source before using it.
