@@ -639,13 +639,13 @@ function ratingValue(raw){
   return Number.isFinite(value)&&value>=0.5&&value<=5?value:null;
 }
 function normalizeFilmKey(value){
-  return String(value||"").normalize("NFKD").replace(/\\p{Diacritic}/gu,"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+  return String(value||"").normalize("NFKD").replace(/\p{Diacritic}/gu,"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 }
 function filmSlugFromUrl(value){
   try{
     const u=new URL(value);
     if(u.hostname!=="letterboxd.com"&&!u.hostname.endsWith(".letterboxd.com"))return "";
-    const match=u.pathname.match(/\\/film\\/([^/]+)/i);
+    const match=u.pathname.match(/\/film\/([^/]+)/i);
     return match?match[1].toLowerCase():"";
   }catch{return ""}
 }
