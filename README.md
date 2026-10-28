@@ -33,7 +33,7 @@ Until those project-specific steps are done, the sign-in dialog intentionally ex
 ## Letterboxd feed behavior
 
 1. Use your public Letterboxd username or profile URL.
-2. Framix reads the public RSS feed and displays up to 12 recent diary entries, including written reviews and rating-only entries. Items with neither a rating nor review text are skipped.
+2. Framix reads the public RSS feed and displays up to 12 recent diary entries, including written reviews and rating-only entries (the `letterboxd-watch-` records). Items with neither a rating nor review text are skipped.
 3. Select **Use this review** to populate the editor's title, year, date, rating, and review text. Upload poster artwork separately if you want it in the exported image; this avoids relying on cross-origin poster downloads.
 4. A free CORS relay is used because GitHub Pages is a static host and browser requests to Letterboxd may be blocked by CORS. This is for public GET data only. No Letterboxd password or private account data is requested.
 
