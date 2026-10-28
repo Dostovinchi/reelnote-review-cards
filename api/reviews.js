@@ -13,7 +13,7 @@ export default async function handler(req,res){
       const rating=rawRating!==''&&Number.isFinite(Number(rawRating))?Number(rawRating):null;
       const text=isReview?clean(value(item,'description')).replace(/^Watched on\s+.*$/i,'').trim():'';
       return {guid,url:value(item,'link'),title:value(item,'letterboxd:filmTitle'),date:value(item,'letterboxd:watchedDate'),rating,text};
-    }).filter(r=>r.title&&(/letterboxd-review-/i.test(r.guid)||( /letterboxd-watch-/i.test(r.guid)&&r.rating!==null))).slice(0,12);
+    }).filter(r=>r.title&&(/letterboxd-review-/i.test(r.guid)||( /letterboxd-watch-/i.test(r.guid)&&r.rating!==null))).slice(0,50);
     res.setHeader('Cache-Control','s-maxage=300, stale-while-revalidate=600');return res.status(200).json({reviews});
   }catch(e){return res.status(502).json({error:'Could not load public reviews'})}
 }
