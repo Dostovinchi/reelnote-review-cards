@@ -634,63 +634,6 @@ function serializdRows(data){
   ];
   return candidates.find(Array.isArray)??null;
 }
-async function relaySerializd(url,valid){
-  const proxy=new URL("https://corsproxy.io/");
-  proxy.searchParams.set("url",url);
-  [
-    "x-requested-with:serializd_vercel",
-    "accept:application/json, text/plain, */*",
-    "referer:https://www.serializd.com/",
-    "user-agent:Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36"
-  ].forEach(header=>proxy.searchParams.append("reqHeaders",header));
-  try{
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),14000);
-    try{
-      const response=await fetch(proxy.href,{credentials:"omit",signal:controller.signal});
-      const body=await response.text();
-      if(!response.ok)throw Error("HTTP "+response.status);
-      if(valid&&!valid(body))throw Error("Unexpected response from header-aware relay");
-      return body;
-    }finally{clearTimeout(timer)}
-  }catch(error){
-    console.warn("Serializd header-aware relay failed; trying generic public relays",error);
-  }
-  return relay(url,valid);
-}
-async function fetchSerializdDiary(username){
-  const user=encodeURIComponent(username);
-  const api="https://serializd.onrender.com/api/user/"+user+"/";
-  /* Match the endpoint fallback sequence used by current open-source Serializd clients. */
-  const endpoints=[
-    api+"reviewspage_v3?sort_by=backdate_desc&include_ratings=true",
-    api+"reviewspage_v3",
-    api+"reviews?sort_by=backdate_desc&include_ratings=true",
-    api+"reviews",
-    api+"diary?page=1"
-  ];
-  let lastError=null,authRejected=false;
-  for(const endpoint of endpoints){
-    try{
-      const body=await relaySerializd(endpoint,text=>{
-        try{return Array.isArray(serializdRows(JSON.parse(text)))}catch(error){
-          if(/401|unauthori[sz]ed|authentication required|token required/i.test(String(error?.message||error)))authRejected=true;
-          return false;
-        }
-      });
-      const rows=serializdRows(JSON.parse(body));
-      if(!Array.isArray(rows))throw Error("Serializd returned an unsupported diary response.");
-      return rows;
-    }catch(error){
-      lastError=error;
-      if(/401|unauthori[sz]ed/i.test(String(error?.message||error)))authRejected=true;
-      console.warn("Serializd endpoint failed",endpoint,error);
-    }
-  }
-  if(authRejected){
-    throw Error("Serializd rejected anonymous diary access (HTTP 401) across its review and diary endpoints.");
-  }
-  throw Error("Could not reach a public Serializd diary endpoint. "+(lastError?.message||"No endpoint returned usable diary data."));
-}
 function showSerializdRows(rows,username,source="Serializd"){
   serializdReviews=(rows||[]).map(item=>typeof item==="string"?{title:item,text:"",rating:null,date:"",year:"",url:""}:serialEntry(item)).filter(x=>x.title).slice(0,12);
   renderSZ(serializdReviews);
@@ -752,25 +695,16 @@ function parseCSV(text){
 }
 async function loadSZ(e){
   e.preventDefault();
-  const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");
+  const username=normalizeSZ($("#serializdUsername").value);
   if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}
-  button.disabled=true;status("#serializdStatus","Checking public Serializd diary endpoints…");
   safeStore.set("framix.sz",username);
   $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);
   $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
   $("#serializdProfileLink").hidden=false;
-  try{
-    const rows=await fetchSerializdDiary(username);
-    showSerializdRows(rows,username,"public Serializd API");
-  }catch(err){
-    serializdReviews=[];renderSZ([]);
-    const reason=String(err?.message||"");
-    const message=/401|403|unauthori[sz]ed/i.test(reason)
-      ?"Serializd refused this public request. Use the Serializd Export Helper below; it runs on Serializd's own site and downloads a file for local import."
-      :"Could not reach Serializd's public API: "+(reason||"no public endpoint responded")+". Use the Serializd Export Helper below or import a JSON/CSV file.";
-    status("#serializdStatus",message,"error");
-    console.warn("Serializd public import failed",err);
-  }finally{button.disabled=false}
+  const helper=$("#serializdHelperLink");
+  status("#serializdStatus","Serializd rejects API calls from this static page. Use the helper below to export from Serializd itself, then import the downloaded JSON file.","error");
+  if(helper)helper.focus();
+  $("#serializdHelperCallout")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
 }
 async function fetchImage(url){
   let lastError=null;
