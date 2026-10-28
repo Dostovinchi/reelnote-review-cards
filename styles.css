@@ -227,3 +227,10 @@ footer>a:last-child{font-size:10px;color:var(--muted)}
 .serializd-file-import{margin-top:14px;padding-top:12px;border-top:1px solid #263648}
 .serializd-file-import>input[type=file]{margin-top:8px;font-size:10px}
 .serializd-file-import>input[type=file]::file-selector-button{margin-right:10px;padding:7px 10px;border:1px solid #40516a;background:#172536;color:#e7edf7;cursor:pointer}
+
+
+/* Clear Serializd import fallback on the static host */
+.serializd-helper-callout{margin-top:14px;padding:14px;border:1px solid #3a2d50;background:#100e19}
+.serializd-helper-callout>strong{display:block;color:#d6b8ff;font-size:12px;margin-bottom:4px}
+.serializd-helper-callout>p{margin:4px 0 10px;color:#aab8ca;font-size:10px;line-height:1.7}
+.serializd-helper-link{display:inline-flex!important;width:auto!important;min-height:38px}
