@@ -152,66 +152,88 @@ function renderTMDBResults(){
 }
 
 /* ---------- Swipeable TMDB poster options ---------- */
-let carouselIndex=0,dragMoved=false;
+let carouselIndex=0,backdropIndex=0,dragMoved=false;
 function posterVariantLabel(v){return ((v.iso_639_1||"no text").toUpperCase())+" · "+(v.vote_average?Number(v.vote_average).toFixed(1)+"★":"TMDB")}
-function renderTMDBPosterOptions(){
-  const wrap=$("#tmdbPosterOptionsWrap"),root=$("#tmdbPosters");
+function backdropVariantLabel(v){const size=v.width&&v.height?v.width+"×"+v.height:"";return ((v.iso_639_1||"no text").toUpperCase())+(size?" · "+size:" · TMDB")}
+function carouselConfig(kind){
+  if(kind==="backdrop")return{
+    root:"#tmdbBackdrops",wrap:"#tmdbBackdropOptionsWrap",count:"#tmdbBackdropCount",
+    variants:tmdbBackdropVariants,active:activeBackdropPath,label:backdropVariantLabel,prefix:"BACKGROUND",nav:"background",
+    aria:"TMDB background options. Swipe right for the next background, left for the previous one.",
+    apply:path=>chooseTMDBBackdrop(path),getIndex:()=>backdropIndex,setIndex:v=>{backdropIndex=v},frameClass:"is-backdrop"
+  };
+  return{
+    root:"#tmdbPosters",wrap:"#tmdbPosterOptionsWrap",count:"#tmdbPosterCount",
+    variants:tmdbPosterVariants,active:activePosterPath,label:posterVariantLabel,prefix:"POSTER",nav:"poster",
+    aria:"TMDB poster options. Swipe right for the next poster, left for the previous one.",
+    apply:path=>chooseTMDBPoster(path),getIndex:()=>carouselIndex,setIndex:v=>{carouselIndex=v},frameClass:""
+  };
+}
+function slideIsCurrent(kind,variant,index,config){
+  return kind==="backdrop"?variant.file_path===activeBackdropPath:index===config.getIndex();
+}
+function renderCarousel(kind){
+  const c=carouselConfig(kind),wrap=$(c.wrap),root=$(c.root);
   root.classList.add("poster-carousel");
+  root.classList.toggle("backdrop-carousel",kind==="backdrop");
   root.replaceChildren();
-  if(!selectedTMDB||!tmdbPosterVariants.length){wrap.hidden=true;$("#tmdbPosterCount").textContent="";return}
+  if(!selectedTMDB||!c.variants.length){wrap.hidden=true;$(c.count).textContent="";return}
   wrap.hidden=false;
-  const found=tmdbPosterVariants.findIndex(v=>v.file_path===activePosterPath);
-  carouselIndex=Math.max(0,found);
-  root.classList.toggle("is-single",tmdbPosterVariants.length<2);
+  c.setIndex(Math.max(0,c.variants.findIndex(v=>v.file_path===c.active)));
+  root.classList.toggle("is-single",c.variants.length<2);
   const viewport=document.createElement("div");viewport.className="poster-carousel-viewport";viewport.tabIndex=0;
-  viewport.setAttribute("role","group");viewport.setAttribute("aria-label","TMDB poster options. Swipe right for the next poster, left for the previous one.");
+  viewport.setAttribute("role","group");viewport.setAttribute("aria-label",c.aria);
   const track=document.createElement("div");track.className="poster-carousel-track";
-  tmdbPosterVariants.forEach((v,i)=>{
-    const slide=document.createElement("figure");slide.className="poster-slide"+(i===carouselIndex?" is-current":"");slide.dataset.index=String(i);
-    const frame=document.createElement("div");frame.className="slide-frame";
+  c.variants.forEach((v,i)=>{
+    const slide=document.createElement("figure");slide.className="poster-slide"+(slideIsCurrent(kind,v,i,c)?" is-current":"");slide.dataset.index=String(i);
+    const frame=document.createElement("div");frame.className="slide-frame"+(c.frameClass?" "+c.frameClass:"");
     const img=document.createElement("img");img.alt="";img.loading="lazy";img.draggable=false;
-    const direct="https://image.tmdb.org/t/p/w342"+v.file_path;img.src=direct;
+    const direct="https://image.tmdb.org/t/p/w"+(kind==="backdrop"?"300":"342")+v.file_path;img.src=direct;
     img.onerror=()=>{const relayed=proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else img.alt="Preview unavailable"};
     frame.append(img);
-    const cap=document.createElement("figcaption");const c1=document.createElement("span");c1.textContent=posterVariantLabel(v);const c2=document.createElement("span");c2.textContent="POSTER "+(i+1);cap.append(c1,c2);
+    const cap=document.createElement("figcaption");const c1=document.createElement("span");c1.textContent=c.label(v);const c2=document.createElement("span");c2.textContent=c.prefix+" "+(i+1);cap.append(c1,c2);
     slide.append(frame,cap);
-    slide.addEventListener("click",()=>{if(dragMoved)return;goToPoster(Number(slide.dataset.index),true)});
+    slide.addEventListener("click",()=>{if(dragMoved)return;goToSlide(kind,Number(slide.dataset.index),true)});
     track.append(slide);
   });
   viewport.append(track);
-  const prev=document.createElement("button");prev.type="button";prev.className="poster-carousel-nav prev";prev.textContent="‹";prev.setAttribute("aria-label","Previous poster");
-  const next=document.createElement("button");next.type="button";next.className="poster-carousel-nav next";next.textContent="›";next.setAttribute("aria-label","Next poster");
-  prev.addEventListener("click",()=>goToPoster(carouselIndex-1,true));
-  next.addEventListener("click",()=>goToPoster(carouselIndex+1,true));
+  const prev=document.createElement("button");prev.type="button";prev.className="poster-carousel-nav prev";prev.textContent="‹";prev.setAttribute("aria-label","Previous "+c.nav);
+  const next=document.createElement("button");next.type="button";next.className="poster-carousel-nav next";next.textContent="›";next.setAttribute("aria-label","Next "+c.nav);
+  prev.addEventListener("click",()=>goToSlide(kind,c.getIndex()-1,true));
+  next.addEventListener("click",()=>goToSlide(kind,c.getIndex()+1,true));
   root.append(viewport,prev,next);
   viewport.addEventListener("keydown",e=>{
-    if(e.key==="ArrowRight"){e.preventDefault();goToPoster(carouselIndex+1,true)}
-    else if(e.key==="ArrowLeft"){e.preventDefault();goToPoster(carouselIndex-1,true)}
+    if(e.key==="ArrowRight"){e.preventDefault();goToSlide(kind,c.getIndex()+1,true)}
+    else if(e.key==="ArrowLeft"){e.preventDefault();goToSlide(kind,c.getIndex()-1,true)}
   });
-  attachCarouselDrag(viewport,track);
-  updateCarouselUI(false);
+  attachCarouselDrag(kind,viewport,track);
+  updateCarouselUI(false,kind);
 }
-function updateCarouselUI(animate=true){
-  const viewport=$("#tmdbPosters .poster-carousel-viewport");if(!viewport)return;
+function renderTMDBPosterOptions(){renderCarousel("poster")}
+function renderTMDBBackdropOptions(){renderCarousel("backdrop")}
+function updateCarouselUI(animate=true,kind="poster"){
+  const c=carouselConfig(kind),viewport=$(c.root+" .poster-carousel-viewport");if(!viewport)return;
   const track=viewport.firstElementChild;if(!track)return;
   if(animate===false)track.style.transition="none";
-  track.style.transform="translateX("+(-carouselIndex*viewport.clientWidth)+"px)";
+  track.style.transform="translateX("+(-c.getIndex()*viewport.clientWidth)+"px)";
   if(animate===false)requestAnimationFrame(()=>{track.style.transition=""});
-  $("#tmdbPosterCount").textContent=(carouselIndex+1)+" / "+tmdbPosterVariants.length;
-  [...viewport.querySelectorAll(".poster-slide")].forEach((s,i)=>s.classList.toggle("is-current",i===carouselIndex));
+  $(c.count).textContent=(c.getIndex()+1)+" / "+c.variants.length;
+  [...viewport.querySelectorAll(".poster-slide")].forEach((s,i)=>s.classList.toggle("is-current",slideIsCurrent(kind,c.variants[i],i,c)));
 }
-function goToPoster(index,apply){
-  if(!tmdbPosterVariants.length)return;
-  carouselIndex=Math.max(0,Math.min(tmdbPosterVariants.length-1,index));
-  updateCarouselUI(true);
-  const viewport=$("#tmdbPosters .poster-carousel-viewport");if(viewport)viewport.focus({preventScroll:true});
-  if(apply)chooseTMDBPoster(tmdbPosterVariants[carouselIndex].file_path);
+function goToSlide(kind,index,apply){
+  const c=carouselConfig(kind);
+  if(!c.variants.length)return;
+  c.setIndex(Math.max(0,Math.min(c.variants.length-1,index)));
+  updateCarouselUI(true,kind);
+  const viewport=$(c.root+" .poster-carousel-viewport");if(viewport)viewport.focus({preventScroll:true});
+  if(apply)c.apply(c.variants[c.getIndex()].file_path);
 }
-function attachCarouselDrag(viewport,track){
+function attachCarouselDrag(kind,viewport,track){
+  const c=carouselConfig(kind);
   let startX=0,baseOffset=0,dragging=false;
   viewport.addEventListener("pointerdown",e=>{
     if(e.pointerType==="mouse"&&e.button!==0)return;
-    dragging=true;dragMoved=false;startX=e.clientX;baseOffset=-carouselIndex*viewport.clientWidth;
+    dragging=true;dragMoved=false;startX=e.clientX;baseOffset=-c.getIndex()*viewport.clientWidth;
     track.style.transition="none";
     try{viewport.setPointerCapture(e.pointerId)}catch{}
   });
@@ -225,9 +247,9 @@ function attachCarouselDrag(viewport,track){
     if(!dragging)return;dragging=false;track.style.transition="";
     const dx=e.clientX-startX;
     const threshold=Math.max(30,viewport.clientWidth*.12);
-    if(dx<=-threshold)goToPoster(carouselIndex+1,true);        /* swipe left → next poster */
-    else if(dx>=threshold)goToPoster(carouselIndex-1,true);  /* swipe right → previous poster */
-    else updateCarouselUI(true);
+    if(dx<=-threshold)goToSlide(kind,c.getIndex()+1,true);        /* swipe left → next */
+    else if(dx>=threshold)goToSlide(kind,c.getIndex()-1,true);  /* swipe right → previous */
+    else updateCarouselUI(true,kind);
     setTimeout(()=>{dragMoved=false},0);
   };
   viewport.addEventListener("pointerup",end);
@@ -269,27 +291,9 @@ async function applyTMDBBackdrop(filePath,requestId){
   }catch(error){console.warn("TMDB backdrop failed",error);return false}
 }
 function refreshBackdropSelection(){
-  const root=$("#tmdbBackdrops");if(!root)return;
-  [...root.children].forEach(button=>button.classList.toggle("is-current",button.dataset.path===activeBackdropPath));
-}
-function renderTMDBBackdropOptions(){
-  const wrap=$("#tmdbBackdropOptionsWrap"),root=$("#tmdbBackdrops");
-  if(!wrap||!root)return;
-  root.replaceChildren();
-  if(!selectedTMDB||!tmdbBackdropVariants.length){wrap.hidden=true;$("#tmdbBackdropCount").textContent="";return}
-  wrap.hidden=false;
-  $("#tmdbBackdropCount").textContent=tmdbBackdropVariants.length+" option"+(tmdbBackdropVariants.length===1?"":"s");
-  tmdbBackdropVariants.forEach((variant,index)=>{
-    const button=document.createElement("button");button.type="button";button.dataset.path=variant.file_path;
-    button.className="backdrop-option"+(variant.file_path===activeBackdropPath?" is-current":"");
-    button.setAttribute("aria-label","Use background "+(index+1)+" of "+tmdbBackdropVariants.length);
-    const img=document.createElement("img");img.alt="";img.loading="lazy";
-    const direct="https://image.tmdb.org/t/p/w300"+variant.file_path;img.src=direct;
-    img.onerror=()=>{const relayed=proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else button.hidden=true};
-    button.append(img);
-    button.addEventListener("click",()=>chooseTMDBBackdrop(variant.file_path));
-    root.append(button);
-  });
+  const idx=tmdbBackdropVariants.findIndex(v=>v.file_path===activeBackdropPath);
+  if(idx>=0)backdropIndex=idx;
+  updateCarouselUI(false,"backdrop");
 }
 async function chooseTMDBBackdrop(filePath){
   if(!filePath||!selectedTMDB)return;
@@ -322,10 +326,11 @@ async function loadTMDBTitle(item,options={}){
     tmdbPosterVariants=[...allPaths.values()];
     if(preferredPath)tmdbPosterVariants.sort((a,b)=>Number(b.file_path===preferredPath)-Number(a.file_path===preferredPath));
     if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images.");
-    const backdropPaths=new Map();
-    [detail.backdrop_path||item.backdrop_path||"",...(imageData.backdrops||[]).map(backdrop=>backdrop.file_path||"")]
-      .filter(Boolean).forEach(path=>{if(!backdropPaths.has(path))backdropPaths.set(path,{file_path:path})});
+    const backdropPaths=new Map(),preferredBackdrop=detail.backdrop_path||item.backdrop_path||"";
+    (imageData.backdrops||[]).forEach(backdrop=>{if(backdrop.file_path)backdropPaths.set(backdrop.file_path,backdrop)});
+    if(preferredBackdrop&&!backdropPaths.has(preferredBackdrop))backdropPaths.set(preferredBackdrop,{file_path:preferredBackdrop});
     tmdbBackdropVariants=[...backdropPaths.values()];
+    if(preferredBackdrop)tmdbBackdropVariants.sort((a,b)=>Number(b.file_path===preferredBackdrop)-Number(a.file_path===preferredBackdrop));
     if(!tmdbBackdropVariants.length&&backObjectUrl){URL.revokeObjectURL(backObjectUrl);backObjectUrl=null;back=null}
     $("#filmTitle").value=mediaTitle.slice(0,100);
     $("#filmYear").value=[creator,mediaYear].filter(Boolean).join(", ").slice(0,60);
@@ -1005,7 +1010,10 @@ $("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client
 $("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("Configure Supabase first.",true);return}const email=val("#authEmail");if(!email){setMsg("Enter your email first.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("If the account exists, a recovery email has been requested.")}catch(e){setMsg(e.message||"Could not request recovery.",true)}});
 $("#resetForm").addEventListener("submit",async e=>{e.preventDefault();const el=$("#resetMessage");if(!client){el.textContent="Configure Supabase first.";return}try{const{error}=await client.auth.updateUser({password:$("#newPassword").value});if(error)throw error;el.textContent="Password updated."}catch(e){el.textContent=e.message||"Could not update password.";el.classList.add("error")}});
 $("#signOut").addEventListener("click",async()=>{if(!client)return;const{error}=await client.auth.signOut();if(error){$("#accountLabel").textContent="Could not sign out.";return}updateAuth(null)});
-window.addEventListener("resize",()=>{if(!$("#tmdbPosterOptionsWrap").hidden)updateCarouselUI(false)});
+window.addEventListener("resize",()=>{
+  if(!$("#tmdbPosterOptionsWrap").hidden)updateCarouselUI(false,"poster");
+  if(!$("#tmdbBackdropOptionsWrap").hidden)updateCarouselUI(false,"backdrop");
+});
 
 /* Small debug/verification hook (no UI) */
 window.FramixStudio={
