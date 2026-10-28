@@ -624,88 +624,43 @@ function renderLB(rows){const grid=$("#lbReviews");grid.replaceChildren();if(!ro
 async function loadLB(e){e.preventDefault();const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");if(!username){status("#lbStatus","Enter a valid Letterboxd username or profile URL.","error");return}button.disabled=true;status("#lbStatus","Loading public reviews…");safeStore.set("framix.lb",username);try{const xml=await relay("https://letterboxd.com/"+encodeURIComponent(username)+"/rss/",x=>/<rss[\s>]/i.test(x)&&/<channel[\s>]/i.test(x));if(!xml.includes("<rss"))throw Error("Not an RSS feed");letterboxdReviews=parseRSS(xml,username);renderLB(letterboxdReviews);status("#lbStatus",letterboxdReviews.length?"Loaded "+letterboxdReviews.length+" recent reviews for @"+username+".":"No written reviews found for @"+username+".",letterboxdReviews.length?"success":"error")}catch(err){status("#lbStatus","Could not load the feed: "+(err?.message||"public relay unavailable")+". Check the username and retry.","error");console.warn("Letterboxd import failed",err)}finally{button.disabled=false}}
 function serialEntry(x){const show=x.show||x.series||x.tvShow||x.media||{},title=x.showName||x.showTitle||show.name||show.title||x.title||x.name||"",note=x.reviewText||x.review||x.reviewContent||x.text||x.comment||x.content||"",raw=x.rating??x.userRating??x.score??x.stars;let rating=raw==null||raw===""?null:Number(raw);if(rating!==null&&!Number.isFinite(rating))rating=null;if(rating!==null&&rating>5&&rating<=10)rating/=2;let url=x.url||x.diaryUrl||x.reviewUrl||"";try{const u=new URL(url);if(u.protocol!=="https:"||!/(^|\.)serializd\.com$/i.test(u.hostname))url=""}catch{url=""}return{title:String(title),text:String(note),rating,date:String(x.dateAdded||x.createdAt||x.watchedDate||x.date||"").slice(0,10),year:String(x.year||x.releaseYear||show.year||""),url}}
 function renderSZ(rows){const grid=$("#serializdReviews");grid.replaceChildren();if(!rows.length){const p=document.createElement("p");p.className="sz-empty";p.textContent="No diary entries loaded yet. Sign in with Serializd below, or choose a JSON/CSV export from your device.";grid.append(p);return}rows.forEach((r,i)=>{const card=document.createElement("article");card.className="sz-review-card";const meta=document.createElement("div");meta.className="sz-review-meta";const date=document.createElement("span");date.textContent=r.date||"SERIALIZD";const rate=document.createElement("span");rate.className="sz-rating";rate.textContent=r.rating===null?"UNRATED":r.rating.toFixed(1)+"/5";meta.append(date,rate);const title=document.createElement("h4");title.textContent=r.title;const year=document.createElement("p");year.className="sz-year";year.textContent=r.year||"TV DIARY";const note=document.createElement("p");note.className="sz-excerpt";note.textContent=r.text||"No written note.";const actions=document.createElement("div");actions.className="sz-review-actions";const link=document.createElement("a");link.href=r.url||$("#serializdProfileLink").href;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open Serializd ↗";const use=document.createElement("button");use.type="button";use.dataset.serializdIndex=i;use.textContent="Use this review";actions.append(link,use);card.append(meta,title,year,note,actions);grid.append(card)})}
-function serializdRows(data){
-  if(Array.isArray(data))return data;
-  if(!data||typeof data!=="object")return null;
-  if(/unauthori[sz]ed|authentication required|token required/i.test(String(data.message||data.error||data.detail||""))||Number(data.status||data.statusCode||data.code)===401)throw Error("HTTP 401");
-  const candidates=[
-    data.reviews,data.items,data.diary,data.entries,data.results,
-    data.data?.reviews,data.data?.items,data.data?.diary,data.data?.entries,data.data?.results
-  ];
-  return candidates.find(Array.isArray)??null;
-}
 function showSerializdRows(rows,username,source="Serializd"){
-  serializdReviews=(rows||[]).map(item=>typeof item==="string"?{title:item,text:"",rating:null,date:"",year:"",url:""}:serialEntry(item)).filter(x=>x.title).slice(0,12);
+  serializdReviews=(rows||[]).map(serialEntry).filter(x=>x.title).slice(0,12);
   renderSZ(serializdReviews);
   const message=serializdReviews.length
-    ?"Loaded "+serializdReviews.length+" diary entries"+(username?" for @"+username:"")+" from "+source+"."
-    :"The data was read, but no titled diary entries were found. Try a diary export rather than a watchlist.";
+    ?"Loaded "+serializdReviews.length+" public diary entries for @"+username+"."
+    :"The endpoint responded, but no diary entries with show titles were returned for @"+username+".";
   status("#serializdStatus",message,serializdReviews.length?"success":"error");
-}
-async function importSerializdFile(file){
-  if(!file)return;
-  if(file.size>15*1024*1024){status("#serializdStatus","That file is over 15 MB. Choose a smaller JSON or CSV export.","error");return}
-  status("#serializdStatus","Reading your Serializd export locally…");
-  try{
-    const text=await file.text();
-    let rows=[];
-    if(/\.json$/i.test(file.name)||/application\/json/i.test(file.type)){
-      const data=JSON.parse(text);
-      rows=serializdRows(data)||[];
-      if(!rows.length&&Array.isArray(data?.shows))rows=data.shows;
-      if(!rows.length&&Array.isArray(data?.export?.diary))rows=data.export.diary;
-      if(!rows.length&&Array.isArray(data?.data?.shows))rows=data.data.shows;
-    }else{
-      const table=parseCSV(text);
-      if(table.length<2)throw Error("CSV file has no diary rows.");
-      const headers=table[0].map(normalizeCSVHeader);
-      const pick=(row,names)=>{const i=headers.findIndex(h=>names.includes(h));return i>=0?row[i]||"":""};
-      rows=table.slice(1).filter(row=>row.some(value=>String(value||"").trim())).map(row=>({
-        showName:pick(row,["showname","showtitle","series","show","name","title","tvshow"]),
-        reviewText:pick(row,["reviewtext","review","reviewcontent","note","notes","text","comment","content"]),
-        rating:pick(row,["rating","userrating","score","stars"]),
-        dateAdded:pick(row,["dateadded","watcheddate","loggeddate","date","createdat","watched"]),
-        year:pick(row,["year","releaseyear","premieredate","firstairdate"]),
-        url:pick(row,["url","diaryurl","reviewurl","serializdurl"])
-      }));
-    }
-    if(!Array.isArray(rows)||!rows.length)throw Error("No diary rows were found in that file. Use the diary JSON/CSV, not a settings or watchlist file.");
-    showSerializdRows(rows,normalizeSZ($("#serializdUsername").value),"your file");
-  }catch(error){
-    status("#serializdStatus","Could not import that file: "+(error?.message||"unsupported file format")+". Select a Serializd diary JSON or CSV export.","error");
-    console.warn("Serializd file import failed",error);
-  }
-}
-function normalizeCSVHeader(value){return String(value||"").replace(/^\uFEFF/,"").trim().toLowerCase().replace(/[^a-z0-9]/g,"")}
-function parseCSV(text){
-  const rows=[];let row=[],cell="",quoted=false;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(ch==='"'){
-      if(quoted&&text[i+1]==='"'){cell+='"';i++}
-      else quoted=!quoted;
-    }else if(ch===","&&!quoted){row.push(cell);cell=""}
-    else if((ch==="\n"||ch==="\r")&&!quoted){
-      if(ch==="\r"&&text[i+1]==="\n")i++;
-      row.push(cell);rows.push(row);row=[];cell="";
-    }else cell+=ch;
-  }
-  if(cell.length||row.length){row.push(cell);rows.push(row)}
-  return rows;
 }
 async function loadSZ(e){
   e.preventDefault();
-  const username=normalizeSZ($("#serializdUsername").value);
-  if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}
+  const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");
+  if(!username){status("#serializdStatus","Enter a valid Serializd username or public profile URL.","error");return}
   safeStore.set("framix.sz",username);
   $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);
   $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
   $("#serializdProfileLink").hidden=false;
-  const helper=$("#serializdHelperLink");
-  status("#serializdStatus","The current public import path is returning HTTP 401. Use the helper below to export from Serializd itself, then import the downloaded JSON file.","error");
-  const helperWindow=window.open("serializd-export.html","_blank","noopener,noreferrer");
-  if(helper)helper.focus();
-  $("#serializdHelperCallout")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+  if(location.hostname.endsWith("github.io")){
+    status("#serializdStatus","This GitHub Pages copy cannot run the secure Serializd API. Open the Vercel deployment of Framix to import directly on mobile; no file is needed.","error");
+    return;
+  }
+  button.disabled=true;
+  status("#serializdStatus","Loading public Serializd diary…");
+  try{
+    const response=await fetch("/api/serializd?username="+encodeURIComponent(username),{
+      method:"GET",credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}
+    });
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok)throw Error(payload?.error||"Serializd import endpoint returned HTTP "+response.status+".");
+    if(!Array.isArray(payload?.reviews))throw Error("The server returned an invalid Serializd diary response.");
+    showSerializdRows(payload.reviews,username,payload.source||"Serializd");
+  }catch(error){
+    const message=String(error?.message||"");
+    status("#serializdStatus",/Failed to fetch|NetworkError/i.test(message)
+      ?"Could not reach Framix's server API. Make sure you are using the Vercel site, not the GitHub Pages link."
+      :"Could not load the public diary: "+(message||"unknown server error"),"error");
+    console.warn("Serializd import failed",error);
+  }finally{button.disabled=false}
 }
 async function fetchImage(url){
   let lastError=null;
@@ -779,7 +734,6 @@ $("#lbReviews").addEventListener("click",event=>{
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
- $("#serializdImportFile").addEventListener("change",event=>{void importSerializdFile(event.target.files?.[0]);event.target.value="";});
 
 $("#serializdLoad").addEventListener("click",e=>{e.preventDefault();void loadSZ({preventDefault(){}})});
 $("#serializdReviews").addEventListener("click",event=>{
