@@ -53,10 +53,9 @@ export default async function handler(req,res){
   const origin=req.headers.origin;
   const host=req.headers["x-forwarded-host"]||req.headers.host;
   if(origin){
-    try{
-      if(new URL(origin).host.toLowerCase()!==String(host||"").toLowerCase())
-        return reply(res,403,{error:"Cross-origin requests are not allowed."});
-    }catch{return reply(res,403,{error:"Invalid request origin."})}
+    const originHost=String(origin).replace(/^https?:\\/\\//i,"").split(/[/?#]/)[0].toLowerCase();
+    if(!/^https?:\\/\\//i.test(String(origin))||!originHost||originHost!==String(host||"").toLowerCase())
+      return reply(res,403,{error:"Cross-origin requests are not allowed."});
   }
   const raw=String(req.query?.username||"").trim().replace(/^@/,"");
   if(!/^[A-Za-z0-9_-]{2,40}$/.test(raw))
