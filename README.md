@@ -5,11 +5,11 @@ Framix is a static film and TV review-card creator. It includes a live poster/ca
 ## What costs $0
 
 - **Hosting:** GitHub Pages on this public repository, with the included GitHub Actions workflow.
-- **Review import:** Letterboxd's public RSS feed via a free public GET relay. No Letterboxd password, OAuth token, paid proxy key, or backend subscription is used. The relay is a shared third-party service with fair-use limits and may occasionally be unavailable; the card editor and PNG export continue to work if it is.
+- **Review import:** Letterboxd's public films grid and RSS feed through a relay, because Letterboxd sends no CORS headers. By default the browser tries free public relays, which are shared, rate-limited by IP, and often unavailable — that is why imports succeed for some visitors and fail for others. Set `proxyBase` in `config.js` to your own free Cloudflare Worker (see [`worker/`](worker/)) for reliable imports. No Letterboxd password or OAuth token is used. The card editor and PNG export always work, even if the relay is down.
 - **Card creation:** Canvas rendering and PNG download run locally in the browser. No images, notes, or card data are uploaded by the editor.
 - **Authentication:** Supabase Free is enough for a small personal project. It currently includes 50,000 monthly active users and 500 MB database per project. Free projects may be paused after a week of low activity, so it is not a guaranteed always-on production service. See [Supabase pricing](https://supabase.com/pricing) and [free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
 
-No paid API or service is required by the code. Stay on free plans and do not enable paid add-ons or overage billing. The free third-party RSS relay and Supabase quotas/availability are not guaranteed.
+No paid API or service is required by the code. Stay on free plans and do not enable paid add-ons or overage billing. The free public relays, the optional Worker, and Supabase quotas/availability are not guaranteed.
 
 ## Turn on secure sign-in (free-tier setup)
 
@@ -33,15 +33,33 @@ Until those project-specific steps are done, the sign-in dialog intentionally ex
 ## Letterboxd imports
 
 1. Enter a public Letterboxd username or profile URL.
-2. Framix reads the user's public paginated `/films/` grid through the `proxy.cors.dev` CORS bridge, extracts the member's rating from each poster's `rated-*` class, and continues through every page. It does not depend on the scraper API that was returning HTTP 401.
+2. Framix reads the user's public paginated `/films/` grid through a relay, extracts the member's rating from each poster's `rated-*` class, and continues through every page. The parser targets Letterboxd's current markup (`li.griditem`, `data-item-slug`, `.poster-viewingdata .rating`).
 3. Framix optionally matches entries from the public RSS feed to add review text and dates.
 4. Choose **Use review** to move a film's title, rating, year and available review text into the poster editor.
 
-The paginated catalogue is an unofficial public service and may be rate-limited or unavailable. Framix tries a direct request first, then public relays; if the catalogue is unavailable it may show only the smaller recent RSS results, and labels that fallback clearly.
+The paginated catalogue is an unofficial public service and may be rate-limited, bot-protected, or unavailable. Framix tries a configured proxy first, then public relays; if the catalogue is unavailable it may show only the smaller recent RSS results, and labels that fallback clearly.
+
+### Reliable imports (free Worker)
+
+Free public relays rate-limit by IP and change availability constantly, so imports worked for some visitors and failed for others. [`worker/`](worker/) contains a small Cloudflare Worker that relays only the allowlisted public hosts and adds CORS.
+
+```sh
+cd worker
+npx wrangler login
+npx wrangler deploy
+```
+
+Then set the deployed URL in `config.js`:
+
+```js
+window.FRAMIX_CONFIG = { ..., proxyBase: "https://framix-proxy.your-name.workers.dev" };
+```
+
+Visitors can also paste their own relay URL on the site under **Ratings not loading?** (stored in their browser only).
 
 ## Deploy
 
-The `.github/workflows/deploy-pages.yml` workflow deploys the repository root to GitHub Pages on pushes to `main`. Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the root. The browser importer uses public Letterboxd data; `api/reviews.js` is retained for optional Vercel hosting.
+The `.github/workflows/deploy-pages.yml` workflow deploys the repository root to GitHub Pages on pushes to `main`. Keep `index.html`, `styles.css`, `app.js`, and `config.js` together in the root. `api/reviews.js` is retained for optional Vercel hosting (it now sends CORS headers). The Worker in `worker/` is deployed separately with Wrangler and is not part of the Pages build.
 
 ## Security
 

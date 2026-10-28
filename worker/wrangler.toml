@@ -1,0 +1,6 @@
+name = "framix-proxy"
+main = "worker.js"
+compatibility_date = "2026-10-28"
+
+# Optional: store a TMDB key so visitors do not have to paste their own.
+# npx wrangler secret put TMDB_KEY

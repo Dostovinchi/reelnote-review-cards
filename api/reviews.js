@@ -1,5 +1,10 @@
 // Vercel serverless function. It reads only public Letterboxd RSS data and keeps CORS work off the browser.
 export default async function handler(req,res){
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Methods','GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Accept, Content-Type');
+  if(req.method==='OPTIONS')return res.status(204).end();
+  if(req.method!=='GET')return res.status(405).json({error:'GET only'});
   const username=String(req.query.username||'').trim().replace(/^@/,'');
   if(!/^[A-Za-z0-9_]{2,30}$/.test(username))return res.status(400).json({error:'Invalid username'});
   try{

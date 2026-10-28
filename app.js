@@ -3,6 +3,8 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const canvas=$("#cardCanvas"),ctx=canvas.getContext("2d"),W=canvas.width,H=canvas.height;
 const safeStore={get(k){try{return localStorage.getItem(k)||""}catch{return""}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+const proxyBase=()=>String((window.FRAMIX_CONFIG&&window.FRAMIX_CONFIG.proxyBase)||safeStore.get("framix.proxy")||"").trim().replace(/\/+$/,"");
+const proxied=url=>proxyBase()?proxyBase()+"/?url="+encodeURIComponent(url):"";
 const val=s=>$(s).value.trim();
 function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
 
@@ -69,14 +71,15 @@ let tmdbResults=[],selectedTMDB=null,tmdbPosterVariants=[],tmdbLoadSequence=0,ac
 function setTMDBStatus(msg,type=""){status("#tmdbStatus",msg,type)}
 function tmdbKey(){return safeStore.get("framix.tmdbKey")||""}
 async function tmdb(path,params={}){
-  const key=tmdbKey();
-  if(!key)throw Error("Save your TMDB v3 API key first (step B below).");
+  const key=tmdbKey(),base=proxyBase();
+  if(!key&&!base)throw Error("Save your TMDB v3 API key first (step B below).");
   const u=new URL("https://api.themoviedb.org/3"+path);
-  u.searchParams.set("api_key",key);
+  if(key)u.searchParams.set("api_key",key);
   Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")u.searchParams.set(k,v)});
+  const requestUrl=base?base+"/?url="+encodeURIComponent(u.href):u.href;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
   try{
-    const response=await fetch(u,{signal:controller.signal,credentials:"omit"});
+    const response=await fetch(requestUrl,{signal:controller.signal,credentials:"omit"});
     if(!response.ok){
       if(response.status===401)throw Error("TMDB rejected this API key. Check that you copied the v3 API key (not your account password) and save it again.");
       if(response.status===403)throw Error("TMDB denied this key. Check your API application status and key.");
@@ -136,7 +139,10 @@ function renderTMDBResults(){
   const grid=$("#tmdbResults");grid.replaceChildren();
   tmdbResults.forEach(item=>{
     const card=document.createElement("article");card.className="tmdb-result";
-    const img=document.createElement("img");img.alt="";img.loading="lazy";img.src=item.poster_path?"https://image.tmdb.org/t/p/w342"+item.poster_path:"";img.onerror=()=>{img.hidden=true};
+    const img=document.createElement("img");img.alt="";img.loading="lazy";
+    const direct=item.poster_path?"https://image.tmdb.org/t/p/w342"+item.poster_path:"";
+    img.src=direct;
+    img.onerror=()=>{const relayed=direct&&proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else img.hidden=true};
     const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small"),button=document.createElement("button");
     title.textContent=item.display_title||"Untitled";
     meta.textContent=(item.media_type==="tv"?"TV SERIES":"MOVIE")+" · "+(item.display_date||"Release date unknown").slice(0,4);
@@ -371,29 +377,7 @@ async function searchLetterboxdLink(){
 
 /* ---------- Letterboxd review fetching (RSS + review page) ---------- */
 async function viaProxy(url,ok){
-  const enc=encodeURIComponent,bust=Date.now();
-  const custom=safeStore.get("framix.proxy").replace(/\/+$/,"");
-  const list=[];
-  if(custom)list.push(u=>custom+"/?url="+enc(u));
-  list.push(
-    u=>"https://api.allorigins.win/raw?url="+enc(u)+"&_="+bust,
-    u=>"https://api.codetabs.com/v1/proxy/?quest="+enc(u),
-    u=>"https://corsproxy.io/?url="+enc(u),
-    u=>"https://thingproxy.freeboard.io/fetch/"+u
-  );
-  window.proxyLog=[];
-  for(const p of list){
-    const u=p(url);let host="?";try{host=new URL(u).hostname.replace(/^(api|www)\./,"")}catch{}
-    try{
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
-      const r=await fetch(u,{credentials:"omit",signal:controller.signal});clearTimeout(timer);
-      if(!r.ok){window.proxyLog.push(host+":"+r.status);continue}
-      const x=await r.text();
-      if(ok(x))return x;
-      window.proxyLog.push(host+":bad");
-    }catch(e){window.proxyLog.push(host+":"+(e.name==="AbortError"?"timeout":"blocked"))}
-  }
-  throw Error("proxy");
+  return relay(url,ok);
 }
 const cleanParas=ps=>ps.map(p=>p.textContent.trim())
   .filter(t=>t&&!/^Watched on /i.test(t)&&!/^This review may contain spoilers/i.test(t)).join("\n");
@@ -446,7 +430,7 @@ async function fetchReview(){
       if(p){data={text:(data&&data.text)||p.text,rating:(data&&data.rating)||p.rating};src="review page"}
     }catch(e){console.warn("Page fetch failed",e)}
   }
-  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or set a custom proxy. ["+(window.proxyLog||[]).join(" · ")+"]");
+  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or set a proxy under “Ratings not loading?”. ["+(window.relayLog||[]).join(" · ")+"]");
   if(data.rating&&[...$("#rating").options].some(o=>o.value===String(data.rating)))$("#rating").value=String(data.rating);
   if(data.text)$("#reviewText").value=data.text;
   $("#reviewerName").value=user;
@@ -622,24 +606,32 @@ function parseRSS(text,username){
 }
 async function relay(url,valid){
   let lastError=null;
-  const enc=encodeURIComponent;
-  const targets=[
+  const enc=encodeURIComponent,base=proxyBase();
+  const targets=[];
+  if(base)targets.push(base+"/?url="+enc(url));
+  targets.push(
+    "https://proxy.cors.dev/"+url,
     "https://api.allorigins.win/raw?url="+enc(url),
     "https://api.codetabs.com/v1/proxy/?quest="+enc(url),
-    "https://corsproxy.io/?url="+enc(url),
-    "https://cors.isomorphic-git.org/"+url
-  ];
+    "https://corsproxy.io/?url="+enc(url)
+  );
+  window.relayLog=[];
   for(const target of targets){
+    let host="?";try{host=new URL(target).hostname.replace(/^(api|www)\./,"")}catch{}
     try{
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),9000);
       try{
         const response=await fetch(target,{credentials:"omit",signal:controller.signal,cache:"no-store"});
-        if(!response.ok)throw Error("Relay HTTP "+response.status);
+        if(!response.ok)throw Error("HTTP "+response.status);
         const body=await response.text();
-        if(valid&&!valid(body))throw Error("Relay returned unexpected data");
+        if(valid&&!valid(body))throw Error("unexpected content");
+        window.relayLog.push(host+":ok");
         return body;
       }finally{clearTimeout(timer)}
-    }catch(error){lastError=error}
+    }catch(error){
+      lastError=error;
+      window.relayLog.push(host+":"+(error.name==="AbortError"?"timeout":String(error.message||"blocked").slice(0,32)));
+    }
   }
   throw lastError||Error("All public relays failed");
 }
@@ -722,7 +714,8 @@ function normalizeRatingApiFilm(item){
 }
 function parseMemberFilmsPage(markup,username,pageNumber){
   const doc=new DOMParser().parseFromString(markup,"text/html");
-  const containers=[...doc.querySelectorAll(".poster-container")];
+  let containers=[...doc.querySelectorAll("li.griditem")];
+  if(!containers.length)containers=[...doc.querySelectorAll(".film-poster")].map(node=>node.closest("li,article")||node.parentElement||node);
   if(!containers.length){
     const title=doc.title||"";
     throw Error(/cloudflare|just a moment|access denied|attention required/i.test(title)
@@ -730,19 +723,14 @@ function parseMemberFilmsPage(markup,username,pageNumber){
       :"No film posters were found on Letterboxd page "+pageNumber+".");
   }
   const films=containers.map(container=>{
+    const meta=container.querySelector("[data-item-slug]")||container;
     const link=container.querySelector('a[href*="/film/"]');
     const img=container.querySelector("img[alt]");
-    const rawHref=link?.getAttribute("href")||"";
-    const slugAttr=container.getAttribute("data-film-slug")
-      ||container.querySelector("[data-film-slug]")?.getAttribute("data-film-slug")
-      ||"";
+    const rawHref=link?.getAttribute("href")||container.getAttribute("data-target-link")||meta.getAttribute("data-item-link")||"";
+    const slugAttr=meta.getAttribute("data-item-slug")||container.getAttribute("data-film-slug")||"";
     const slug=(slugAttr||((rawHref.match(/\/film\/([^/?#]+)/i)||[])[1]||"")).toLowerCase();
-    const title=String(
-      img?.getAttribute("alt")
-      ||container.getAttribute("data-film-name")
-      ||container.querySelector("[data-film-name]")?.getAttribute("data-film-name")
-      ||""
-    ).trim();
+    const nameAttr=meta.getAttribute("data-item-name")||container.getAttribute("data-film-name")||"";
+    const title=String(img?.getAttribute("alt")||nameAttr||"").replace(/\s*\(\d{4}\)\s*$/,"").trim();
     const ratingNode=container.querySelector(".poster-viewingdata .rating")
       ||container.querySelector(".rating");
     const ratingClass=[
@@ -760,10 +748,11 @@ function parseMemberFilmsPage(markup,username,pageNumber){
       const parsed=Number(explicit);
       if(explicit!==""&&Number.isFinite(parsed)&&parsed>=0.5&&parsed<=5)rating=parsed;
     }
-    const yearAttr=container.getAttribute("data-film-release-year")
+    const yearAttr=meta.getAttribute("data-item-full-display-name")
+      ||container.getAttribute("data-film-release-year")
       ||container.getAttribute("data-film-year")
-      ||container.querySelector("[data-film-release-year]")?.getAttribute("data-film-release-year")
       ||"";
+    const yearFromName=(String(yearAttr).match(/\((\d{4})\)/)||[])[1]||(nameAttr.match(/\((\d{4})\)/)||[])[1]||"";
     const yearFromSlug=(slug.match(/-(\d{4})$/)||[])[1]||"";
     let url=slug?"https://letterboxd.com/film/"+slug+"/":"https://letterboxd.com/"+encodeURIComponent(username)+"/films/";
     try{
@@ -772,7 +761,7 @@ function parseMemberFilmsPage(markup,username,pageNumber){
         if(candidate.protocol==="https:"&&candidate.hostname==="letterboxd.com"&&/\/film\/[^/]+/.test(candidate.pathname))url=candidate.href;
       }
     }catch{}
-    return{guid:"letterboxd-rating-"+slug,slug,title,year:String(yearAttr||yearFromSlug),date:"",rating,text:"",url,isReview:false,isDiaryEntry:true};
+    return{guid:"letterboxd-rating-"+slug,slug,title,year:String(yearFromName||yearFromSlug),date:"",rating,text:"",url,isReview:false,isDiaryEntry:true};
   }).filter(item=>item.title&&item.rating!==null);
   const pageNumbers=[];
   for(const node of doc.querySelectorAll(".paginate-page, a[href*='/films/page/']")){
@@ -794,30 +783,16 @@ async function fetchMemberFilmsPage(username,pageNumber){
     ?"/"+encodeURIComponent(username)+"/films/"
     :"/"+encodeURIComponent(username)+"/films/page/"+pageNumber+"/";
   const target="https://letterboxd.com"+path;
-  const proxy="https://proxy.cors.dev/"+target;
-  let lastError=null;
   try{
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
-    try{
-      const response=await fetch(proxy,{credentials:"omit",cache:"no-store",headers:{Accept:"text/html"},signal:controller.signal});
-      if(!response.ok){
-        const detail=response.headers.get("X-Cors-Error");
-        throw Error(detail||"Public page request returned HTTP "+response.status+".");
-      }
-      const markup=await response.text();
-      if(!/<html|poster-container/i.test(markup))throw Error("The public page did not contain a Letterboxd film grid.");
-      return parseMemberFilmsPage(markup,username,pageNumber);
-    }finally{clearTimeout(timer)}
-  }catch(error){lastError=error}
-  try{
-    const body=await relay(target,markup=>/<html|poster-container/i.test(markup)&&/poster-container/i.test(markup));
+    const body=await relay(target,markup=>/<html/i.test(markup)&&/film-poster|poster-container|griditem/i.test(markup));
     return parseMemberFilmsPage(body,username,pageNumber);
   }catch(error){
-    const detail=String(error?.message||lastError?.message||"Public page unavailable");
-    if(/403|401|cloudflare|access denied|attention required/i.test(detail)){
-      throw Error("Letterboxd is blocking access to the public films page (HTTP 401/403).");
+    const detail=String(error?.message||"Public page unavailable");
+    if(/403|401|cloudflare|access denied|attention required|just a moment/i.test(detail)){
+      throw Error("Letterboxd is blocking public access from this network right now.");
     }
-    throw Error("Could not read Letterboxd films page "+pageNumber+".");
+    if(/No film posters/i.test(detail))throw Error("Letterboxd returned a page without a film grid. Try again in a moment.");
+    throw Error("Could not read Letterboxd films page "+pageNumber+"."+(window.relayLog?" Relays: "+window.relayLog.join(", "):""));
   }
 }
 async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
@@ -890,17 +865,19 @@ async function loadLB(e){
     }else{
       letterboxdReviews=[];renderLB([]);
       const errorText=String(error?.message||"Ratings service unavailable");
-      status("#lbStatus",/401|403/i.test(errorText)
-        ?"Letterboxd is refusing the public request right now. Try again later."
-        :"Couldn’t reach this public profile. Check the username or try again later.",
-        "error");
+      if(/blocking|refusing|401|403/i.test(errorText))
+        status("#lbStatus","Letterboxd is blocking automated access from this network right now. Card making still works — retry the import in a few minutes.","error");
+      else if(/without a film grid|unexpected|read Letterboxd/i.test(errorText))
+        status("#lbStatus","Letterboxd returned a page the importer couldn’t read. Retry, or set your own proxy under “Ratings not loading?”.","error");
+      else
+        status("#lbStatus","Ratings couldn’t be loaded. Check the username, or use “Ratings not loading?” to set your own proxy.","error");
     }
     console.warn("Letterboxd import failed",error);
   }finally{button.disabled=false;button.textContent="Load ratings ↗"}
 }
 async function fetchImage(url){
   let lastError=null;
-  const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
+  const targets=[...(proxyBase()?[proxyBase()+"/?url="+encodeURIComponent(url)]:[]),url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
   for(const target of targets){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),16000);
     try{
@@ -922,6 +899,13 @@ function updateAuth(session){const email=session?.user?.email;$("#accountLabel")
 function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.supabaseAnonKey||!window.supabase?.createClient){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}try{client=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey)}catch(e){console.warn(e)}if(!client){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}$("#authFields").hidden=false;$("#authSetupNote").hidden=true;client.auth.getSession().then(({data})=>updateAuth(data?.session||null)).catch(()=>updateAuth(null));client.auth.onAuthStateChange((_e,session)=>updateAuth(session));if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery")$("#resetDialog").showModal()}
 
 /* ---------- Wiring ---------- */
+$("#proxySave")?.addEventListener("click",()=>{
+  const input=$("#proxyUrl"),note=$("#proxyStatus"),value=input.value.trim().replace(/\/+$/,"");
+  note.classList.remove("error");
+  if(value&&!/^https?:\/\//i.test(value)){note.textContent="Use a full http:// or https:// URL.";note.classList.add("error");return}
+  safeStore.set("framix.proxy",value);input.value=value;
+  note.textContent=value?"Saved. Ratings and artwork will try this proxy first.":"Cleared. Ratings will use the public relays again.";
+});
 $("#tmdbSaveKey").addEventListener("click",()=>{
  const key=val("#tmdbKey");
  if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
@@ -979,6 +963,9 @@ window.addEventListener("resize",()=>{if(!$("#tmdbPosterOptionsWrap").hidden)upd
 /* Small debug/verification hook (no UI) */
 window.FramixStudio={
   paint,
+  parseMemberFilmsPage,
+  fetchMemberFilmsPage,
+  proxyBase,
   setArtwork(posterSrc,backdropSrc){
     const load=src=>new Promise((resolve,reject)=>{const i=new Image();i.crossOrigin="anonymous";i.onload=()=>resolve(i);i.onerror=()=>reject(Error("load failed"));i.src=src});
     return Promise.all([posterSrc?load(posterSrc):Promise.resolve(null),backdropSrc?load(backdropSrc):Promise.resolve(null)])
@@ -988,7 +975,12 @@ window.FramixStudio={
 
 /* ---------- Init ---------- */
 const savedTMDBKey=tmdbKey();if(savedTMDBKey)$("#tmdbKey").value=savedTMDBKey;
-const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField)proxyField.value=savedProxy;
+const savedProxy=safeStore.get("framix.proxy"),proxyField=$("#proxyUrl");if(savedProxy&&proxyField){proxyField.value=savedProxy;const note=$("#proxyStatus");if(note)note.textContent="Using your saved proxy first."}
+$$(".hero-frame img").forEach(img=>{
+  const hide=()=>{img.hidden=true};
+  img.addEventListener("error",hide);
+  if(img.complete&&img.naturalWidth===0)hide();
+});
 buildStyleChips();
 syncThemeOptions(false);
 const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
