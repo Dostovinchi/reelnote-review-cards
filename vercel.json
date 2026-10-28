@@ -1,1 +1,10 @@
-{"functions":{"api/reviews.js":{"maxDuration":10}}}
+{
+  "functions": {
+    "api/reviews.js": {
+      "maxDuration": 10
+    },
+    "api/serializd.js": {
+      "maxDuration": 30
+    }
+  }
+}
