@@ -613,7 +613,7 @@ function buildStyleChips(){
 }
 
 /* ---------- Diary connections (public RSS / diary endpoints) ---------- */
-let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie",serializdToken="";
+let client=null,authMode="signin",letterboxdReviews=[],serializdReviews=[],lastReviewMediaHint="movie";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function normalizeSZ(input){let s=String(input||"").trim();if(/^https?:\/\//i.test(s)){try{const u=new URL(s);if(!/(^|\.)serializd\.com$/i.test(u.hostname))return"";const parts=u.pathname.split("/").filter(Boolean);const i=parts.findIndex(x=>["user","users"].includes(x.toLowerCase()));s=i>=0?parts[i+1]:(parts[parts.length-1]||"")}catch{return""}}s=s.replace(/^@/,"").replace(/\/$/,"");return /^[A-Za-z0-9_-]{2,40}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
@@ -691,53 +691,6 @@ async function fetchSerializdDiary(username){
   }
   throw Error("Could not reach a public Serializd diary endpoint. "+(lastError?.message||"No endpoint returned usable diary data."));
 }
-async function loginSerializdDirect(email,password){
-  /* Credentials are posted only to Serializd's API host, never through a CORS proxy. */
-  const response=await fetch("https://serializd.onrender.com/api/login",{
-    method:"POST",credentials:"omit",
-    headers:{"accept":"application/json, text/plain, */*","content-type":"application/json","x-requested-with":"serializd_vercel"},
-    body:JSON.stringify({email,password})
-  });
-  const raw=await response.text();
-  let data={};try{data=JSON.parse(raw)}catch{}
-  if(!response.ok)throw Error("Serializd login failed (HTTP "+response.status+"). Check your account details.");
-  if(!data.token)throw Error(data.message||data.error||"Serializd did not return a login token.");
-  return data;
-}
-async function fetchSerializdDiaryDirect(username,token=serializdToken){
-  if(!token)throw Error("Sign in to Serializd first.");
-  const user=encodeURIComponent(username),base="https://serializd.onrender.com/api/user/"+user+"/";
-  const endpoints=[
-    base+"diary?page=1",
-    base+"reviewspage_v3?sort_by=backdate_desc&include_ratings=true",
-    base+"reviews?sort_by=backdate_desc&include_ratings=true"
-  ];
-  let lastError=null;
-  for(const endpoint of endpoints){
-    try{
-      const response=await fetch(endpoint,{credentials:"omit",headers:{
-        "accept":"application/json, text/plain, */*",
-        "x-requested-with":"serializd_vercel",
-        "authorization":"Bearer "+token
-      }});
-      const raw=await response.text();
-      if(response.status===401)throw Error("Serializd rejected the login token (HTTP 401). Sign out in Serializd and try again.");
-      if(!response.ok)throw Error("HTTP "+response.status);
-      let data;try{data=JSON.parse(raw)}catch{throw Error("Serializd returned invalid JSON.")}
-      const rows=serializdRows(data);
-      if(Array.isArray(rows))return rows;
-      throw Error("Serializd returned an unrecognised diary format.");
-    }catch(error){
-      lastError=error;
-      if(/rejected the login token/.test(String(error?.message||error)))throw error;
-      console.warn("Authenticated Serializd endpoint failed",endpoint,error);
-    }
-  }
-  if(lastError&&/Failed to fetch|CORS|NetworkError/i.test(String(lastError.message||lastError))){
-    throw Error("The browser could not connect directly to Serializd's API (likely a CORS restriction). No password was sent through a proxy. Use the JSON/CSV import below instead.");
-  }
-  throw lastError||Error("Could not load the Serializd diary.");
-}
 function showSerializdRows(rows,username,source="Serializd"){
   serializdReviews=(rows||[]).map(item=>typeof item==="string"?{title:item,text:"",rating:null,date:"",year:"",url:""}:serialEntry(item)).filter(x=>x.title).slice(0,12);
   renderSZ(serializdReviews);
@@ -801,55 +754,24 @@ async function loadSZ(e){
   e.preventDefault();
   const username=normalizeSZ($("#serializdUsername").value),button=$("#serializdLoad");
   if(!username){status("#serializdStatus","Enter a valid Serializd username or profile URL.","error");return}
-  button.disabled=true;status("#serializdStatus",serializdToken?"Loading diary with your current Serializd session…":"Trying public Serializd endpoints…");
+  button.disabled=true;status("#serializdStatus","Checking public Serializd diary endpoints…");
   safeStore.set("framix.sz",username);
   $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(username);
   $("#serializdProfileLink").textContent="Open @"+username+" on Serializd ↗";
   $("#serializdProfileLink").hidden=false;
   try{
-    const rows=serializdToken?await fetchSerializdDiaryDirect(username):await fetchSerializdDiary(username);
-    showSerializdRows(rows,username,serializdToken?"your Serializd session":"public API");
+    const rows=await fetchSerializdDiary(username);
+    showSerializdRows(rows,username,"public Serializd API");
   }catch(err){
     serializdReviews=[];renderSZ([]);
     const reason=String(err?.message||"");
-    const message=/401|unauthori[sz]ed/i.test(reason)
-      ?"Serializd rejected anonymous diary access (HTTP 401). Open “Sign in to Serializd” below, or import a JSON/CSV export."
-      :"Could not load the public diary: "+(reason||"no public endpoint responded")+". Open “Sign in to Serializd” below, or import a JSON/CSV export.";
+    const message=/401|403|unauthori[sz]ed/i.test(reason)
+      ?"Serializd refused this public request. Use the Serializd Export Helper below; it runs on Serializd's own site and downloads a file for local import."
+      :"Could not reach Serializd's public API: "+(reason||"no public endpoint responded")+". Use the Serializd Export Helper below or import a JSON/CSV file.";
     status("#serializdStatus",message,"error");
-    console.warn("Serializd import failed",err);
+    console.warn("Serializd public import failed",err);
   }finally{button.disabled=false}
 }
-async function signInAndLoadSerializd(e){
-  e.preventDefault();
-  const email=$("#serializdEmail").value.trim(),password=$("#serializdPassword"),username=normalizeSZ($("#serializdUsername").value),button=$("#serializdAuthLoad");
-  if(!username){status("#serializdStatus","Enter your Serializd username or profile URL above first.","error");$("#serializdUsername").focus();return}
-  if(!email||!password.value){status("#serializdStatus","Enter your Serializd email and password to sign in.","error");return}
-  button.disabled=true;status("#serializdStatus","Signing in directly with Serializd…");
-  let loginData;
-  try{
-    loginData=await loginSerializdDirect(email,password.value);
-    serializdToken=loginData.token;
-    password.value="";
-    const signedInUser=normalizeSZ(loginData.username||username)||username;
-    $("#serializdUsername").value=signedInUser;
-    safeStore.set("framix.sz",signedInUser);
-    $("#serializdProfileLink").href="https://www.serializd.com/user/"+encodeURIComponent(signedInUser);
-    $("#serializdProfileLink").textContent="Open @"+signedInUser+" on Serializd ↗";
-    $("#serializdProfileLink").hidden=false;
-    const rows=await fetchSerializdDiaryDirect(signedInUser,serializdToken);
-    showSerializdRows(rows,signedInUser,"your Serializd session");
-  }catch(error){
-    const message=/Failed to fetch|CORS|NetworkError/i.test(String(error?.message||""))
-      ?"The browser could not connect directly to Serializd's API (often a CORS restriction). Your password was not sent through any proxy. Use the JSON/CSV import option below."
-      :(error?.message||"Serializd sign-in failed. Check your email and password.");
-    status("#serializdStatus",message,"error");
-    console.warn("Serializd sign-in/import failed",error);
-  }finally{
-    password.value="";
-    button.disabled=false;
-  }
-}
-
 async function fetchImage(url){
   let lastError=null;
   const targets=[url,"https://proxy.cors.dev/"+url,"https://api.allorigins.win/raw?url="+encodeURIComponent(url)];
@@ -922,7 +844,6 @@ $("#lbReviews").addEventListener("click",event=>{
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#serializdForm").addEventListener("submit",loadSZ);
- $("#serializdAuthForm").addEventListener("submit",signInAndLoadSerializd);
  $("#serializdImportFile").addEventListener("change",event=>{void importSerializdFile(event.target.files?.[0]);event.target.value="";});
 
 $("#serializdLoad").addEventListener("click",e=>{e.preventDefault();void loadSZ({preventDefault(){}})});
