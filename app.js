@@ -1014,6 +1014,17 @@ $("#tmdbSaveKey").addEventListener("click",()=>{
  void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);
+$$(".arrow-field").forEach(field=>{
+  const select=field.querySelector("select");if(!select)return;
+  field.querySelectorAll(".arrow-nav").forEach(button=>{
+    button.addEventListener("click",()=>{
+      const total=select.options.length;if(!total)return;
+      const step=Number(button.dataset.step)||1;
+      select.selectedIndex=(select.selectedIndex+step+total)%total;
+      select.dispatchEvent(new Event("change",{bubbles:true}));
+    });
+  });
+});
  $("#themeFamily").addEventListener("change",()=>{syncThemeOptions(false);paint();});
  $("#themeSwatches").addEventListener("change",event=>{if(event.target.matches('input[name="theme"]'))syncThemeOptions();});
  $("#cardComposition").addEventListener("change",()=>{cardStyle=$("#cardComposition").value;paint();});
