@@ -634,7 +634,7 @@ function buildStyleChips(){
 
 /* ---------- Diary connections (public RSS / diary endpoints) ---------- */
 let client=null,authMode="signin",letterboxdReviews=[],lastReviewMediaHint="movie";
-const LB_PAGE_SIZE=24;
+const LB_PAGE_SIZE=3;
 let lbVisible=[],lbPage=0,lbQuery="";
 function normalizeLB(input){let s=String(input||"").trim().replace(/^@/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").replace(/\/(?:rss\/?)?$/i,"").split(/[?#/]/)[0].replace(/^@/,"");return /^[A-Za-z0-9_]{2,30}$/.test(s)?s:""}
 function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.localName===name)?.textContent?.trim()||""}
