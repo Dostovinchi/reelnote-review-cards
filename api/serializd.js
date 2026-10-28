@@ -53,8 +53,8 @@ export default async function handler(req,res){
   const origin=req.headers.origin;
   const host=req.headers["x-forwarded-host"]||req.headers.host;
   if(origin){
-    const originHost=String(origin).replace(/^https?:\\/\\//i,"").split(/[/?#]/)[0].toLowerCase();
-    if(!/^https?:\\/\\//i.test(String(origin))||!originHost||originHost!==String(host||"").toLowerCase())
+    const originHost=String(origin).replace(/^https?:\/\//i,"").split(/[/?#]/)[0].toLowerCase();
+    if(!/^https?:\/\//i.test(String(origin))||!originHost||originHost!==String(host||"").toLowerCase())
       return reply(res,403,{error:"Cross-origin requests are not allowed."});
   }
   const raw=String(req.query?.username||"").trim().replace(/^@/,"");
