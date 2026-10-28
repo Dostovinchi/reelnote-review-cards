@@ -703,6 +703,7 @@ async function loadSZ(e){
   $("#serializdProfileLink").hidden=false;
   const helper=$("#serializdHelperLink");
   status("#serializdStatus","The current public import path is returning HTTP 401. Use the helper below to export from Serializd itself, then import the downloaded JSON file.","error");
+  const helperWindow=window.open("serializd-export.html","_blank","noopener,noreferrer");
   if(helper)helper.focus();
   $("#serializdHelperCallout")?.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
 }
