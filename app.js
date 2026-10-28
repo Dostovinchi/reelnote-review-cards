@@ -857,16 +857,22 @@ async function loadLB(e){
   const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");
   if(!username){status("#lbStatus","Enter your Letterboxd username.","error");return}
   button.disabled=true;button.textContent="Loading…";
-  status("#lbStatus","Loading every rated film…");
+  status("#lbStatus","Finding your recent ratings…");
   safeStore.set("framix.lb",username);
+  const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
+  const rssPromise=fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Letterboxd feed")
+    .then(xml=>parseRSS(xml,username));
+  const ratingsPromise=fetchRatedLetterboxdFilms(username,message=>status("#lbStatus",message));
+  let rssEntries=[];
   try{
-    const result=await fetchRatedLetterboxdFilms(username,message=>status("#lbStatus",message));
-    let rssEntries=[];
-    try{
-      const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
-      const xml=await fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Review feed");
-      rssEntries=parseRSS(xml,username);
-    }catch(error){console.info("Optional review text was unavailable",error)}
+    rssEntries=await rssPromise;
+    if(rssEntries.length){
+      letterboxdReviews=rssEntries;renderLB(letterboxdReviews);
+      status("#lbStatus","Recent ratings loaded. Fetching the rest…","success");
+    }
+  }catch(error){console.info("Recent feed was unavailable",error)}
+  try{
+    const result=await ratingsPromise;
     letterboxdReviews=mergeRSSReviewText(result.films,rssEntries);
     renderLB(letterboxdReviews);
     status("#lbStatus",letterboxdReviews.length
@@ -874,21 +880,19 @@ async function loadLB(e){
       :"No rated films found. Make sure the profile is public.",
       letterboxdReviews.length?"success":"error");
   }catch(error){
-    try{
-      const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
-      const xml=await fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Letterboxd feed");
-      letterboxdReviews=parseRSS(xml,username);
+    if(!rssEntries.length){
+      try{rssEntries=await rssPromise}catch(feedError){console.info("Letterboxd feed unavailable",feedError)}
+    }
+    letterboxdReviews=rssEntries;
+    if(letterboxdReviews.length){
       renderLB(letterboxdReviews);
-      status("#lbStatus",letterboxdReviews.length
-        ?"Full ratings unavailable. Showing "+letterboxdReviews.length+" recent feed entries."
-        :"Ratings service unavailable; no recent feed entries found.",
-        "error");
-    }catch(feedError){
+      status("#lbStatus","Showing "+letterboxdReviews.length+" recent ratings. Try again later for your full shelf.","success");
+    }else{
       letterboxdReviews=[];renderLB([]);
       const errorText=String(error?.message||"Ratings service unavailable");
       status("#lbStatus",/401|403/i.test(errorText)
-        ?"Ratings service refused the request (HTTP 401/403). Try again later."
-        :"Could not load ratings. Check your username or try again later.",
+        ?"Letterboxd is refusing the public request right now. Try again later."
+        :"Couldn’t reach this public profile. Check the username or try again later.",
         "error");
     }
     console.warn("Letterboxd import failed",error);
@@ -990,3 +994,4 @@ syncThemeOptions(false);
 const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
 paint();configureAuth();
 })();
+
