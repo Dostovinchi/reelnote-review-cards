@@ -11,7 +11,7 @@ export default async function handler(req,res){
     const reviews=items.map(item=>{
       const guid=value(item,'guid'),isReview=/letterboxd-review-/i.test(guid),rawRating=value(item,'letterboxd:memberRating');
       const rating=rawRating!==''&&Number.isFinite(Number(rawRating))?Number(rawRating):null;
-      const text=isReview?clean(value(item,'description')).replace(/^Watched on\\s+.*$/i,'').trim():'';
+      const text=isReview?clean(value(item,'description')).replace(/^Watched on\s+.*$/i,'').trim():'';
       return {guid,url:value(item,'link'),title:value(item,'letterboxd:filmTitle'),date:value(item,'letterboxd:watchedDate'),rating,text};
     }).filter(r=>r.title&&(/letterboxd-review-/i.test(r.guid)||( /letterboxd-watch-/i.test(r.guid)&&r.rating!==null))).slice(0,12);
     res.setHeader('Cache-Control','s-maxage=300, stale-while-revalidate=600');return res.status(200).json({reviews});
