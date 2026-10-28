@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028g"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028l" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#171715"><meta name="description" content="Framix — make your film and TV taste worth sharing."><title>Framix — Every story leaves a frame.</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20261028g"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="config.js" defer></script><script src="app.js?v=20261028m" defer></script></head>
 <body><header class="topbar">
   <a class="brand" href="#top" aria-label="Framix home"><span class="brand-mark">f.</span><span>framix</span></a>
-  <nav aria-label="Main navigation"><a href="#connect">Connect diary</a><a href="#studio">Poster studio</a></nav>
+  <nav aria-label="Main navigation"><a href="#connect">Ratings</a><a href="#studio">Poster studio</a></nav>
   <div class="top-actions"><span id="accountLabel">Your film journal, reframed.</span><button class="button quiet" id="authOpen" type="button">Sign in ↗</button><button class="button quiet" id="signOut" type="button" hidden>Sign out</button></div>
 </header>
 <main id="top">
@@ -11,7 +11,7 @@
     <p class="eyebrow"><span class="status-dot"></span> FILM · TV · YOUR OWN WORDS</p>
     <h1>Your films,<br><em>beautifully framed.</em></h1>
     <p class="lede">Bring a film still, your rating, and a few words. Make a cinematic poster worth keeping.</p>
-    <div class="hero-actions"><a class="button primary" href="#studio">Make a poster ↘</a><a class="text-link" href="#connect">Import a diary ↓</a></div>
+    <div class="hero-actions"><a class="button primary" href="#studio">Make a poster ↘</a><a class="text-link" href="#connect">Load ratings ↓</a></div>
     <p class="hero-footnote">FREE TO CREATE · NO ACCOUNT REQUIRED</p>
   </div>
   <div class="hero-gallery" aria-label="Movie still inspiration">
@@ -34,27 +34,23 @@
 
 
 <section id="connect" class="connections section">
-  <div class="section-heading compact-heading"><div><p class="eyebrow">01 / YOUR DIARY</p><h2>Bring your <em>watchlist.</em></h2></div><p>Load public reviews without sharing your passwords.</p></div>
+  <div class="section-heading compact-heading">
+    <div><p class="eyebrow">01 / LETTERBOXD</p><h2>Your ratings,<br><em>all together.</em></h2></div>
+    <p>Every rated film. Review text when available.</p>
+  </div>
   <div class="connect-grid">
     <article class="connect-card">
-      <div class="service-head"><span class="service-icon letterboxd-icon">lb</span><div><h3>Letterboxd</h3><p>Import all your rated films, with review text when available.</p></div></div>
-      <form id="letterboxdForm" class="connection-form"><label for="lbUsername">USERNAME OR PUBLIC PROFILE URL</label><div class="input-action"><input id="lbUsername" type="text" autocomplete="off" maxlength="180" placeholder="Letterboxd username" required><button id="lbLoad" class="button primary" type="submit">Load all rated films ↗</button></div></form>
-      <p id="lbStatus" class="connection-status" role="status" aria-live="polite">Loads your rated films across pages. No Letterboxd password needed.</p><div id="lbReviews" class="review-results" aria-live="polite"></div>
-    </article>
-    <article class="connect-card">
-      <div class="service-head"><span class="service-icon serializd-icon">sz</span><div><h3>Serializd</h3><p>Import your public TV diary directly, including on mobile.</p></div></div>
-      <form id="serializdForm" class="connection-form"><label for="serializdUsername">USERNAME OR PUBLIC PROFILE URL</label><div class="input-action"><input id="serializdUsername" type="text" autocomplete="off" maxlength="180" placeholder="Serializd username or profile URL" required><button id="serializdLoad" class="button primary" type="submit">Load diary ↗</button></div></form>
-      <p id="serializdStatus" class="connection-status" role="status" aria-live="polite">Enter your public username to import recent diary entries. No password or file is needed for public entries.</p>
-      <a id="serializdProfileLink" class="profile-link" href="https://www.serializd.com/" target="_blank" rel="noopener noreferrer" hidden>Open Serializd profile ↗</a>
-      <div id="serializdHostNote" class="serializd-host-note" hidden>
-        <strong>One-time setup required for mobile import</strong>
-        <p>The current link is GitHub Pages, which only serves static files. Deploy this same repository to Vercel once so the secure /api/serializd endpoint can run. Then open the Vercel address on your phone; importing works in-page with no downloads.</p>
-        <a class="button quiet" href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FDostovinchi%2Freelnote-review-cards" target="_blank" rel="noopener noreferrer">Deploy Framix on Vercel ↗</a>
-      </div>
-      <div id="serializdReviews" class="review-results" aria-live="polite"></div>
+      <form id="letterboxdForm" class="connection-form">
+        <label for="lbUsername">LETTERBOXD USERNAME OR PROFILE URL</label>
+        <div class="input-action">
+          <input id="lbUsername" type="text" autocomplete="off" maxlength="180" placeholder="e.g. Z0dico" required>
+          <button id="lbLoad" class="button primary" type="submit">Load ratings ↗</button>
+        </div>
+      </form>
+      <p id="lbStatus" class="connection-status" role="status" aria-live="polite">Enter your username to load your ratings.</p>
+      <div id="lbReviews" class="review-results" aria-live="polite"></div>
     </article>
   </div>
-  <p class="connection-footnote">Imports use public data only. If a service limits access, poster creation still works manually.</p>
 </section>
 <section id="studio" class="studio section">
   <div class="section-heading"><div><p class="eyebrow">02 / THE CREATIVE STUDIO</p><h2>Make it <em>cinematic.</em></h2></div><p>Choose a poster format, set the mood, and download a high-resolution PNG. No account needed.</p></div>
@@ -89,9 +85,9 @@
       <div class="editor-divider"></div>
       <div class="panel-heading"><span class="step-number">C</span><div><h3>Poster theme</h3><p>Choose which style collection to use.</p></div></div>
       <label for="themeFamily">THEME COLLECTION</label>
-      <select id="themeFamily"><option value="general">Framix · General</option><option value="letterboxd">Letterboxd · Classic card styles</option><option value="serializd">Serializd · TV diary styles</option></select>
+      <select id="themeFamily"><option value="general">Framix · General</option><option value="letterboxd">Letterboxd · Classic card styles</option></select>
       <label for="posterLayout">POSTER FORMAT</label><select id="posterLayout"><option value="poster">Cinematic poster · full image</option><option value="review" selected>Review card · image + rating</option><option value="editorial">Editorial · clean &amp; minimal</option></select>
-      <label for="cardComposition">POSTER COMPOSITION</label><select id="cardComposition"></select><p class="composition-help">17 layouts, including Letterboxd Classic, Polaroid, Ticket Stub and Split Frame.</p>
+      <label for="cardComposition">POSTER COMPOSITION</label><select id="cardComposition"></select>
       <label>COLOUR GRADE</label>
       <div class="themes" id="themeSwatches">
         <label><input type="radio" name="theme" value="noir" checked><span class="swatch noir"></span><b>Noir</b></label>
