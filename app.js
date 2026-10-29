@@ -9,29 +9,29 @@ const val=s=>$(s).value.trim();
 function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
 
 /* ---------- Card engine state (ReelNote review-card maker) ---------- */
-const CARD_STYLES=[["medium","Poster centre"],["big","Large poster"],["small","Small poster"],["blur","Blurred backdrop"],["starsfirst","Stars first"],["text","Text only"],["tilt","Tilted poster"],["polaroid","Polaroid"],["banner","Top banner"],["cinema","Cinema strip"],["glass","Glass panel"],["color","Colour wash"],["fullposter","Full poster"],["lbclassic","Letterboxd classic"],["ticket","Ticket stub"],["split","Split frame"],["stacked","Stacked cards"]];
+const CARD_STYLES=[["medium","بوستر في الوسط"],["big","بوستر كبير"],["small","بوستر صغير"],["blur","خلفية ضبابية"],["starsfirst","النجوم أولًا"],["text","نص فقط"],["tilt","بوستر مائل"],["polaroid","بولارويد"],["banner","شريط علوي"],["cinema","شريط سينمائي"],["glass","لوح زجاجي"],["color","غسيل لوني"],["fullposter","بوستر كامل"],["lbclassic","ليتربوكسد الكلاسيكي"],["ticket","تذكرة سينما"],["split","إطار منقسم"],["stacked","بطاقات متراكبة"]];
 
 const makePalette=(label,canvas,accent,ink,muted,darkText=false)=>({label,swatch:canvas,canvas,accent,ink,muted,darkText});
 const THEME_PALETTES={
   general:{
-    noir:makePalette("Noir","#090e16","#d2ae70","#f3f0e8","#b3bdca"),
-    midnight:makePalette("Midnight","#0b1a2c","#64b2c5","#eef4f7","#a8c2d2"),
-    ember:makePalette("Ember","#21141b","#d2ae70","#f4e8e2","#cbb4b2"),
-    archive:makePalette("Archive","#e4d9c8","#8c423f","#252932","#5d626a",true),
-    ocean:makePalette("Ocean","#071c26","#36c9d4","#e8fcff","#9bc2cb"),
-    rosewood:makePalette("Rosewood","#26131c","#ee8f9c","#fff0f3","#d7b7c0"),
-    forest:makePalette("Forest","#122218","#b7cc77","#f2f7e8","#b5c5a0"),
-    mono:makePalette("Monochrome","#151515","#f4f0e7","#ffffff","#b6b6b6")
+    noir:makePalette("نوار","#090e16","#d2ae70","#f3f0e8","#b3bdca"),
+    midnight:makePalette("منتصف الليل","#0b1a2c","#64b2c5","#eef4f7","#a8c2d2"),
+    ember:makePalette("جمر","#21141b","#d2ae70","#f4e8e2","#cbb4b2"),
+    archive:makePalette("أرشيف","#e4d9c8","#8c423f","#252932","#5d626a",true),
+    ocean:makePalette("محيط","#071c26","#36c9d4","#e8fcff","#9bc2cb"),
+    rosewood:makePalette("خشب الورد","#26131c","#ee8f9c","#fff0f3","#d7b7c0"),
+    forest:makePalette("غابة","#122218","#b7cc77","#f2f7e8","#b5c5a0"),
+    mono:makePalette("أحادي اللون","#151515","#f4f0e7","#ffffff","#b6b6b6")
   },
   letterboxd:{
-    lb_green:makePalette("Green","#071c11","#00e054","#f3f5ed","#b5c5b8"),
-    lb_red:makePalette("Red","#2b1018","#ff667a","#fff0ed","#d5b4b7"),
-    lb_blue:makePalette("Blue","#0d1d33","#70a9ff","#f0f5ff","#b5c7e1"),
-    lb_gold:makePalette("Gold","#231c10","#f1c75b","#fff7df","#d3c7a5"),
-    lb_violet:makePalette("Violet","#1b102b","#bc8cff","#f5efff","#c6b5dc"),
-    lb_sunset:makePalette("Sunset","#2b160d","#ff985c","#fff2e6","#e0bda5"),
-    lb_cream:makePalette("Cream","#eee6d8","#42614d","#232925","#62685f",true),
-    lb_mint:makePalette("Mint","#08251f","#71e0bf","#e9fff7","#a8d8cb")
+    lb_green:makePalette("أخضر","#071c11","#00e054","#f3f5ed","#b5c5b8"),
+    lb_red:makePalette("أحمر","#2b1018","#ff667a","#fff0ed","#d5b4b7"),
+    lb_blue:makePalette("أزرق","#0d1d33","#70a9ff","#f0f5ff","#b5c7e1"),
+    lb_gold:makePalette("ذهبي","#231c10","#f1c75b","#fff7df","#d3c7a5"),
+    lb_violet:makePalette("بنفسجي","#1b102b","#bc8cff","#f5efff","#c6b5dc"),
+    lb_sunset:makePalette("غروب","#2b160d","#ff985c","#fff2e6","#e0bda5"),
+    lb_cream:makePalette("كريمي","#eee6d8","#42614d","#232925","#62685f",true),
+    lb_mint:makePalette("نعناعي","#08251f","#71e0bf","#e9fff7","#a8d8cb")
   }
 };
 function activePalette(){
@@ -72,7 +72,7 @@ function setTMDBStatus(msg,type=""){status("#tmdbStatus",msg,type)}
 function tmdbKey(){return safeStore.get("framix.tmdbKey")||""}
 async function tmdb(path,params={}){
   const key=tmdbKey(),base=proxyBase();
-  if(!key&&!base)throw Error("Save your TMDB v3 API key first (step B below).");
+  if(!key&&!base)throw Error("احفظ مفتاح TMDB v3 أولًا (الخطوة ب).");
   const u=new URL("https://api.themoviedb.org/3"+path);
   if(key)u.searchParams.set("api_key",key);
   Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")u.searchParams.set(k,v)});
@@ -81,10 +81,10 @@ async function tmdb(path,params={}){
   try{
     const response=await fetch(requestUrl,{signal:controller.signal,credentials:"omit"});
     if(!response.ok){
-      if(response.status===401)throw Error("TMDB rejected this API key. Check that you copied the v3 API key (not your account password) and save it again.");
-      if(response.status===403)throw Error("TMDB denied this key. Check your API application status and key.");
-      if(response.status===429)throw Error("TMDB rate limit reached. Wait a moment and retry.");
-      throw Error("TMDB request failed ("+response.status+").");
+      if(response.status===401)throw Error("رفض TMDB هذا المفتاح. تأكد أنك نسخت مفتاح v3 (لا كلمة مرور حسابك) واحفظه مجددًا.");
+      if(response.status===403)throw Error("رفض TMDB هذا المفتاح. تحقق من حالة تطبيق API والمفتاح.");
+      if(response.status===429)throw Error("بلغت حدّ معدل TMDB. انتظر قليلًا ثم أعد المحاولة.");
+      throw Error("فشل طلب TMDB ("+response.status+").");
     }
     return await response.json();
   }finally{clearTimeout(timer)}
@@ -120,9 +120,9 @@ function scoreTMDBResult(item,title,year,mediaHint){
 }
 async function searchTMDB(){
   const query=val("#tmdbQuery");
-  if(!query){setTMDBStatus("Enter a movie or TV title to search.");return}
+  if(!query){setTMDBStatus("أدخل عنوان فيلم أو مسلسل للبحث.");return}
   const button=$("#tmdbSearch");button.disabled=true;$("#tmdbResults").replaceChildren();
-  setTMDBStatus("Searching TMDB…");
+  setTMDBStatus("جارٍ البحث في TMDB…");
   try{
     const [movies,tv]=await Promise.all([
       tmdb("/search/movie",{query,include_adult:"false"}),
@@ -131,8 +131,8 @@ async function searchTMDB(){
     tmdbResults=[...(movies.results||[]).map(item=>tmdbResult(item,"movie")),...(tv.results||[]).map(item=>tmdbResult(item,"tv"))]
       .sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,20);
     renderTMDBResults();
-    setTMDBStatus(tmdbResults.length?"Found "+tmdbResults.length+" titles. Choose one, then swipe through its TMDB posters.":"No results found. Try the original title or another spelling.",tmdbResults.length?"success":"");
-  }catch(error){setTMDBStatus(error.message||"Could not reach TMDB. Try again later.","error")}
+    setTMDBStatus(tmdbResults.length?"عُثر على "+tmdbResults.length+" عنوان. اختر واحدًا ثم اسحب بوسترات TMDB.":"لا نتائج. جرّب العنوان الأصلي أو تهجئة أخرى.",tmdbResults.length?"success":"");
+  }catch(error){setTMDBStatus(error.message||"تعذّر الوصول إلى TMDB. حاول لاحقًا.","error")}
   finally{button.disabled=false}
 }
 function renderTMDBResults(){
@@ -144,28 +144,28 @@ function renderTMDBResults(){
     img.src=direct;
     img.onerror=()=>{const relayed=direct&&proxyBase()?proxied(direct):"";if(relayed&&img.src!==relayed)img.src=relayed;else img.hidden=true};
     const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small"),button=document.createElement("button");
-    title.textContent=item.display_title||"Untitled";
-    meta.textContent=(item.media_type==="tv"?"TV SERIES":"MOVIE")+" · "+(item.display_date||"Release date unknown").slice(0,4);
-    button.type="button";button.textContent="Choose title";button.addEventListener("click",()=>loadTMDBTitle(item));
+    title.textContent=item.display_title||"بدون عنوان";
+    meta.textContent=(item.media_type==="tv"?"مسلسل":"فيلم")+" · "+(item.display_date||"تاريخ غير معروف").slice(0,4);
+    button.type="button";button.textContent="اختر العنوان";button.addEventListener("click",()=>loadTMDBTitle(item));
     info.append(title,meta,button);card.append(img,info);grid.append(card);
   });
 }
 
 /* ---------- Swipeable TMDB poster options ---------- */
 let carouselIndex=0,backdropIndex=0,dragMoved=false;
-function posterVariantLabel(v){return ((v.iso_639_1||"no text").toUpperCase())+" · "+(v.vote_average?Number(v.vote_average).toFixed(1)+"★":"TMDB")}
-function backdropVariantLabel(v){const size=v.width&&v.height?v.width+"×"+v.height:"";return ((v.iso_639_1||"no text").toUpperCase())+(size?" · "+size:" · TMDB")}
+function posterVariantLabel(v){return ((v.iso_639_1||"بدون نص").toUpperCase())+" · "+(v.vote_average?Number(v.vote_average).toFixed(1)+"★":"TMDB")}
+function backdropVariantLabel(v){const size=v.width&&v.height?v.width+"×"+v.height:"";return ((v.iso_639_1||"بدون نص").toUpperCase())+(size?" · "+size:" · TMDB")}
 function carouselConfig(kind){
   if(kind==="backdrop")return{
     root:"#tmdbBackdrops",wrap:"#tmdbBackdropOptionsWrap",count:"#tmdbBackdropCount",
-    variants:tmdbBackdropVariants,active:activeBackdropPath,label:backdropVariantLabel,prefix:"BACKGROUND",nav:"background",
-    aria:"TMDB background options. Swipe right for the next background, left for the previous one.",
+    variants:tmdbBackdropVariants,active:activeBackdropPath,label:backdropVariantLabel,prefix:"خلفية",prevAria:"الخلفية السابقة",nextAria:"الخلفية التالية",
+    aria:"خيارات خلفية TMDB. اسحب يسارًا للخلفية التالية ويمينًا للسابقة.",
     apply:path=>chooseTMDBBackdrop(path),getIndex:()=>backdropIndex,setIndex:v=>{backdropIndex=v},frameClass:"is-backdrop"
   };
   return{
     root:"#tmdbPosters",wrap:"#tmdbPosterOptionsWrap",count:"#tmdbPosterCount",
-    variants:tmdbPosterVariants,active:activePosterPath,label:posterVariantLabel,prefix:"POSTER",nav:"poster",
-    aria:"TMDB poster options. Swipe right for the next poster, left for the previous one.",
+    variants:tmdbPosterVariants,active:activePosterPath,label:posterVariantLabel,prefix:"بوستر",prevAria:"البوستر السابق",nextAria:"البوستر التالي",
+    aria:"خيارات بوستر TMDB. اسحب يسارًا للبوستر التالي ويمينًا للسابق.",
     apply:path=>chooseTMDBPoster(path),getIndex:()=>carouselIndex,setIndex:v=>{carouselIndex=v},frameClass:""
   };
 }
@@ -197,8 +197,8 @@ function renderCarousel(kind){
     track.append(slide);
   });
   viewport.append(track);
-  const prev=document.createElement("button");prev.type="button";prev.className="poster-carousel-nav prev";prev.textContent="‹";prev.setAttribute("aria-label","Previous "+c.nav);
-  const next=document.createElement("button");next.type="button";next.className="poster-carousel-nav next";next.textContent="›";next.setAttribute("aria-label","Next "+c.nav);
+  const prev=document.createElement("button");prev.type="button";prev.className="poster-carousel-nav prev";prev.textContent="‹";prev.setAttribute("aria-label",c.prevAria);
+  const next=document.createElement("button");next.type="button";next.className="poster-carousel-nav next";next.textContent="›";next.setAttribute("aria-label",c.nextAria);
   prev.addEventListener("click",()=>goToSlide(kind,c.getIndex()-1,true));
   next.addEventListener("click",()=>goToSlide(kind,c.getIndex()+1,true));
   root.append(viewport,prev,next);
@@ -260,8 +260,8 @@ async function chooseTMDBPoster(filePath){
   const requestId=++tmdbLoadSequence;
   try{
     const loaded=await applyTMDBPoster(filePath,requestId);
-    if(loaded)setTMDBStatus("Poster "+(carouselIndex+1)+" / "+tmdbPosterVariants.length+" applied · swipe for more artwork.","success");
-  }catch(error){setTMDBStatus("Could not load that poster variant. Try another one.","error");console.warn("TMDB poster variant failed",error)}
+    if(loaded)setTMDBStatus("تم تطبيق البوستر "+(carouselIndex+1)+" من "+tmdbPosterVariants.length+" · اسحب للمزيد.","success");
+  }catch(error){setTMDBStatus("تعذّر تحميل هذا البوستر. جرّب غيره.","error");console.warn("TMDB poster variant failed",error)}
 }
 async function applyTMDBPoster(filePath,requestId){
   const blob=await fetchImage("https://image.tmdb.org/t/p/w780"+filePath);
@@ -298,13 +298,13 @@ function refreshBackdropSelection(){
 async function chooseTMDBBackdrop(filePath){
   if(!filePath||!selectedTMDB)return;
   const applied=await applyTMDBBackdrop(filePath,tmdbLoadSequence);
-  if(applied)setTMDBStatus("Background artwork applied.","success");
-  else setTMDBStatus("Could not load that background artwork. Try another one.","error");
+  if(applied)setTMDBStatus("تم تطبيق خلفية العمل الفني.","success");
+  else setTMDBStatus("تعذّر تحميل هذه الخلفية. جرّب غيرها.","error");
 }
 async function loadTMDBTitle(item,options={}){
   const requestId=options.requestId??(++tmdbLoadSequence);
   const buttons=$("#tmdbResults").querySelectorAll("button");buttons.forEach(button=>button.disabled=true);
-  setTMDBStatus(options.automatic?"Found the title. Loading its posters…":"Loading title and poster options…");
+  setTMDBStatus(options.automatic?"تم العثور على الفيلم. جارٍ تحميل البوسترات…":"جارٍ تحميل الفيلم وخيارات البوستر…");
   try{
     const detailPath="/"+item.media_type+"/"+item.id;
     const detailParams=item.media_type==="movie"?{append_to_response:"credits"}:{};
@@ -313,7 +313,7 @@ async function loadTMDBTitle(item,options={}){
       tmdb(detailPath+"/images").catch(error=>{console.warn("TMDB image variants unavailable",error);return {posters:[]}})
     ]);
     if(requestId!==tmdbLoadSequence)return;
-    const mediaTitle=detail.title||detail.name||item.display_title||"TMDB title";
+    const mediaTitle=detail.title||detail.name||item.display_title||"عنوان TMDB";
     const mediaYear=String(detail.release_date||detail.first_air_date||item.display_date||"").slice(0,4);
     const creator=item.media_type==="tv"?(detail.created_by||[]).map(person=>person.name).filter(Boolean).slice(0,2).join(", "):(detail.credits?.crew||[]).find(person=>person.job==="Director")?.name||"";
     selectedTMDB={id:item.id,media_type:item.media_type,display_title:mediaTitle,display_date:mediaYear};
@@ -325,7 +325,7 @@ async function loadTMDBTitle(item,options={}){
     if(preferredPath&&!allPaths.has(preferredPath))allPaths.set(preferredPath,{file_path:preferredPath,iso_639_1:null,vote_average:0,vote_count:0});
     tmdbPosterVariants=[...allPaths.values()];
     if(preferredPath)tmdbPosterVariants.sort((a,b)=>Number(b.file_path===preferredPath)-Number(a.file_path===preferredPath));
-    if(!tmdbPosterVariants.length)throw Error("TMDB found the title, but it has no poster images.");
+    if(!tmdbPosterVariants.length)throw Error("وجد TMDB الفيلم لكن لا توجد صور بوستر.");
     const backdropPaths=new Map(),preferredBackdrop=detail.backdrop_path||item.backdrop_path||"";
     (imageData.backdrops||[]).forEach(backdrop=>{if(backdrop.file_path)backdropPaths.set(backdrop.file_path,backdrop)});
     if(preferredBackdrop&&!backdropPaths.has(preferredBackdrop))backdropPaths.set(preferredBackdrop,{file_path:preferredBackdrop});
@@ -341,9 +341,9 @@ async function loadTMDBTitle(item,options={}){
     activeBackdropPath="";
     renderTMDBBackdropOptions();
     void applyTMDBBackdrop(detail.backdrop_path||item.backdrop_path||"",requestId);
-    setTMDBStatus((options.automatic?"Review imported · poster loaded automatically. ":"Poster loaded. ")+tmdbPosterVariants.length+" TMDB poster option"+(tmdbPosterVariants.length===1?"":"s")+" — swipe the artwork to switch.","success");
+    setTMDBStatus((options.automatic?"تم استيراد المراجعة · حُمّل البوستر تلقائيًا. ":"تم تحميل البوستر. ")+tmdbPosterVariants.length+" خيار بوستر من TMDB — اسحب العمل الفني للتبديل.","success");
   }catch(error){
-    if(requestId===tmdbLoadSequence)setTMDBStatus(error.message||"Could not load TMDB poster artwork.","error");
+    if(requestId===tmdbLoadSequence)setTMDBStatus(error.message||"تعذّر تحميل عمل TMDB الفني.","error");
     console.warn("TMDB title selection failed",error);
   }finally{if(requestId===tmdbLoadSequence)buttons.forEach(button=>button.disabled=false)}
 }
@@ -357,12 +357,12 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
   const backdropWrap=$("#tmdbBackdropOptionsWrap");if(backdropWrap)backdropWrap.hidden=true;
   const backdropRoot=$("#tmdbBackdrops");if(backdropRoot)backdropRoot.replaceChildren();
   if(!tmdbKey()){
-    setTMDBStatus("Review imported. Save your TMDB v3 key in step B to load the artwork automatically.","error");
+    setTMDBStatus("تم استيراد المراجعة. احفظ مفتاح TMDB v3 في الخطوة ب لتحميل العمل الفني تلقائيًا.","error");
     return;
   }
-  if(!query){setTMDBStatus("Review imported. No title was available for TMDB search.","error");return}
+  if(!query){setTMDBStatus("تم استيراد المراجعة. لا عنوان متاح للبحث في TMDB.","error");return}
   const yearHint=guessYear(year);
-  setTMDBStatus("Review imported · searching TMDB for "+query+(yearHint?" ("+yearHint+")":"")+"…");
+  setTMDBStatus("تم استيراد المراجعة · البحث في TMDB عن "+query+(yearHint?" ("+yearHint+")":"")+"…");
   try{
     const movieParams={query,include_adult:"false"};
     const tvParams={query};
@@ -383,12 +383,12 @@ async function autoFindTMDBForReview({title,year="",mediaHint="movie"}){
     populateFilmSelect(candidates.slice(0,10));
     const best=candidates[0];
     if(!best||best._framixScore<55){
-      setTMDBStatus("Review imported, but TMDB couldn't find a confident title match. Choose the correct title in step B.","error");
+      setTMDBStatus("تم استيراد المراجعة، لكن TMDB لم يجد تطابقًا واثقًا. اختر العنوان الصحيح في الخطوة ب.","error");
       return;
     }
     await loadTMDBTitle(best,{automatic:true,requestId});
   }catch(error){
-    if(requestId===tmdbLoadSequence)setTMDBStatus("Review imported, but TMDB poster lookup failed: "+(error.message||"unknown error"),"error");
+    if(requestId===tmdbLoadSequence)setTMDBStatus("تم استيراد المراجعة، لكن فشل بحث البوستر في TMDB: "+(error.message||"خطأ غير معروف"),"error");
   }
 }
 
@@ -405,7 +405,7 @@ async function searchLetterboxdLink(){
   const link=$("#lbReviewLink").value.trim();
   if(link===lbLinkSearched&&lbMatches.length)return lbMatches;
   const m=link.match(/letterboxd\.com\/([^\/]+)\/film\/([^\/?#]+)(?:\/(\d+))?/i);
-  if(!m)throw Error("Paste a Letterboxd review link like letterboxd.com/your-name/film/film-title/");
+  if(!m)throw Error("الصق رابط مراجعة ليتربوكسد مثل letterboxd.com/your-name/film/film-title/");
   let slug=m[2],year="";
   const y=slug.match(/-(\d{4})$/);if(y){year=y[1];slug=slug.slice(0,-5)}
   const params={query:slug.replace(/-/g," "),include_adult:"false"};
@@ -415,7 +415,7 @@ async function searchLetterboxdLink(){
   const matches=(d.results||[]).slice()
     .sort((a,b)=>((normalizeTitle(b.title)===want)-(normalizeTitle(a.title)===want))||((b.vote_count||0)-(a.vote_count||0)))
     .slice(0,10).map(r=>tmdbResult(r,"movie"));
-  if(!matches.length)throw Error("TMDB couldn't find that film. Check the link, or search the title manually in step B.");
+  if(!matches.length)throw Error("لم يجد TMDB هذا الفيلم. تحقق من الرابط أو ابحث عن العنوان يدويًا في الخطوة ب.");
   lbLinkSearched=link;
   populateFilmSelect(matches);
   return matches;
@@ -467,7 +467,7 @@ async function fromPage(user,slug,n){
 async function fetchReview(){
   const link=$("#lbReviewLink").value.trim();
   const m=link.match(/letterboxd\.com\/([^\/]+)\/film\/([^\/?#]+)(?:\/(\d+))?/i);
-  if(!m)throw Error("Paste your Letterboxd review link first (letterboxd.com/your-name/film/film-title/).");
+  if(!m)throw Error("الصق رابط مراجعة ليتربوكسد أولًا (letterboxd.com/your-name/film/film-title/).");
   const user=m[1],slug=m[2],n=m[3]||"";
   let data=null,src="";
   try{data=await fromRss(user,slug,n);if(data)src="RSS"}catch(e){console.warn("RSS fetch failed",e)}
@@ -476,7 +476,7 @@ async function fetchReview(){
       if(p){data={text:(data&&data.text)||p.text,rating:(data&&data.rating)||p.rating};src="review page"}
     }catch(e){console.warn("Page fetch failed",e)}
   }
-  if(!data)throw Error("Couldn't fetch the review from Letterboxd. Paste the text manually, or try again later. ["+(window.relayLog||[]).join(" · ")+"]");
+  if(!data)throw Error("تعذّر جلب المراجعة من ليتربوكسد. الصق النص يدويًا أو أعد المحاولة لاحقًا. ["+(window.relayLog||[]).join(" · ")+"]");
   if(data.rating&&[...$("#rating").options].some(o=>o.value===String(data.rating)))$("#rating").value=String(data.rating);
   if(data.text)$("#reviewText").value=data.text;
   $("#reviewerName").value=user;
@@ -518,7 +518,7 @@ function drawReview(c,y,maxY,color){
   const paras=text.split(/\n+/).filter(Boolean);
   let size=42,lines=[],lh=0;
   for(;size>=24;size-=2){
-    c.font=size+"px system-ui,sans-serif";lh=size*1.42;lines=[];
+    c.font=size+"px 'Tajawal',system-ui,sans-serif";lh=size*1.42;lines=[];
     paras.forEach(p=>lines.push(...wrap(p,880,99)));
     if(y+lines.length*lh<=maxY)break;
   }
@@ -535,14 +535,12 @@ function drawText(c,y,starsFirst,hasRev){
   c.textAlign="center";c.textBaseline="top";
   const stars=()=>{c.font="bold "+ss+"px system-ui,sans-serif";c.fillStyle=sc;
     c.fillText("★".repeat(Math.floor(r))+(r%1?"½":""),W/2,y);y+=ss*1.35};
-  const title=()=>{c.font="bold "+ts+"px system-ui,sans-serif";c.fillStyle=tc;
-    wrap($("#filmTitle").value||"Untitled film",900).forEach(l=>{c.fillText(l,W/2,y);y+=ts*1.22});y+=6;
-    c.font=(hasRev?32:38)+"px system-ui,sans-serif";c.globalAlpha=.9;c.fillText($("#filmYear").value,W/2,y);c.globalAlpha=1;y+=hasRev?56:70};
+  const title=()=>{c.font="bold "+ts+"px 'Reem Kufi',system-ui,sans-serif";c.fillStyle=tc;
+    wrap($("#filmTitle").value||"فيلم بلا عنوان",900).forEach(l=>{c.fillText(l,W/2,y);y+=ts*1.22});y+=6;
+    c.font=(hasRev?32:38)+"px 'Tajawal',system-ui,sans-serif";c.globalAlpha=.9;c.fillText($("#filmYear").value,W/2,y);c.globalAlpha=1;y+=hasRev?56:70};
   const who=yy=>{const show=$("#showReviewer"),name=$("#reviewerName");if(!show?.checked||!name?.value?.trim())return;
-    const a="Reviewed by ",b=name.value.trim();c.font="28px system-ui,sans-serif";const wa=c.measureText(a).width;
-    c.font="bold 28px system-ui,sans-serif";const wb=c.measureText(b).width,x=(W-wa-wb)/2;
-    c.textAlign="left";c.fillStyle=tc;c.globalAlpha=.85;c.font="28px system-ui,sans-serif";c.fillText(a,x,yy);
-    c.font="bold 28px system-ui,sans-serif";c.fillText(b,x+wa,yy);c.globalAlpha=1;c.textAlign="center"};
+    const a="راجعه ",b=name.value.trim();c.font="28px 'Tajawal',system-ui,sans-serif";
+    c.textAlign="center";c.direction="rtl";c.fillStyle=tc;c.globalAlpha=.85;c.fillText(a+b,W/2,yy);c.direction="ltr";c.globalAlpha=1};
   if(starsFirst){stars();title()}else{title();stars()}
   if(hasRev){y=drawReview(c,y,H-150,tc);who(H-110)}else who(y);
 }
@@ -620,7 +618,7 @@ function paint(){
   }else if(style==="color"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,520,260);drawText(ctx,e+(hr?50:90),false,hr)}
   else if(style==="fullposter")drawText(ctx,hr?900:1300,false,hr);
   else drawText(ctx,hr?200:760,false,hr);
-  $("#previewStatus").textContent=poster?"ARTWORK LOADED ✓":"READY TO FRAME ↗";
+  $("#previewStatus").textContent=poster?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
 }
 function render(){clearTimeout(render.t);render.t=setTimeout(paint,60)}
 function buildStyleChips(){
@@ -641,7 +639,7 @@ function rssTag(root,name){return [...root.getElementsByTagName("*")].find(e=>e.
 function plain(raw){const d=new DOMParser().parseFromString("<!doctype html><html><body>"+String(raw||"")+"</body></html>","text/html");d.querySelectorAll("script,style,img").forEach(n=>n.remove());d.querySelectorAll("br").forEach(n=>n.replaceWith(document.createTextNode("\n")));return(d.body.textContent||"").replace(/\u00a0/g," ").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
 function parseRSS(text,username){
   const xml=new DOMParser().parseFromString(text,"application/xml");
-  if(xml.querySelector("parsererror"))throw Error("Could not parse the public RSS feed.");
+  if(xml.querySelector("parsererror"))throw Error("تعذّرت قراءة خلاصة RSS العامة.");
   return [...xml.getElementsByTagName("item")].map(item=>{
     const guid=rssTag(item,"guid"),isReview=/letterboxd-review-/i.test(guid),isDiaryEntry=/letterboxd-(?:review|watch)-/i.test(guid);
     const title=rssTag(item,"filmTitle"),raw=rssTag(item,"memberRating");
@@ -687,7 +685,7 @@ async function relay(url,valid){
       window.relayLog.push(host+":"+(error.name==="AbortError"?"timeout":String(error.message||"blocked").slice(0,32)));
     }
   }
-  throw lastError||Error("All public relays failed");
+  throw lastError||Error("فشلت جميع الخوادم العامة");
 }
 async function fetchPublicText(url,valid,label){
   let directError=null;
@@ -706,7 +704,7 @@ async function fetchPublicText(url,valid,label){
     if(/HTTP 401|HTTP 403/i.test(reasons)){
       throw Error(label+" access was rejected (HTTP 401/403). The public endpoint or relay is refusing the request.");
     }
-    throw Error(label+" unavailable from the browser and public relays. "+(relayError?.message||directError?.message||"Try again later."));
+    throw Error(label+" unavailable from the browser and public relays. "+(relayError?.message||directError?.message||"حاول لاحقًا."));
   }
 }
 function lbFiltered(){
@@ -722,7 +720,7 @@ function lbCard(review,index){
   const card=document.createElement("article");card.className="lb-review-card";
   const content=document.createElement("div");content.className="lb-review-content";
   const meta=document.createElement("div");meta.className="lb-review-meta";
-  const date=document.createElement("span");date.textContent=review.date||(review.text?"REVIEW":"RATED");
+  const date=document.createElement("span");date.textContent=review.date||(review.text?"مراجعة":"تقييم");
   const stars=document.createElement("span");stars.className="lb-stars";
   stars.textContent=review.rating===null?"—":("★".repeat(Math.floor(review.rating))+(review.rating%1?"½":"")+" "+review.rating.toFixed(1));
   meta.append(date,stars);
@@ -731,8 +729,8 @@ function lbCard(review,index){
   if(review.year){const year=document.createElement("p");year.className="lb-year";year.textContent=review.year;content.append(year)}
   if(review.text){const excerpt=document.createElement("p");excerpt.className="lb-excerpt";excerpt.textContent=review.text;content.append(excerpt)}
   const actions=document.createElement("div");actions.className="lb-review-actions";
-  const link=document.createElement("a");link.href=review.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Letterboxd ↗";
-  const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=index;use.textContent="Use review";
+  const link=document.createElement("a");link.href=review.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="ليتربوكسد ↗";
+  const use=document.createElement("button");use.type="button";use.dataset.reviewIndex=index;use.textContent="استخدم المراجعة";
   actions.append(link,use);card.append(content,actions);
   return card;
 }
@@ -744,14 +742,14 @@ function renderLBPage(){
   lbVisible=list.slice(lbPage*LB_PAGE_SIZE,(lbPage+1)*LB_PAGE_SIZE);
   if(toolbar)toolbar.hidden=!letterboxdReviews.length;
   const count=$("#lbCount"),info=$("#lbPageInfo"),prev=$("#lbPrev"),next=$("#lbNext");
-  if(count)count.textContent=list.length===letterboxdReviews.length?letterboxdReviews.length+" films":list.length+" of "+letterboxdReviews.length+" films";
+  if(count)count.textContent=list.length===letterboxdReviews.length?letterboxdReviews.length+" فيلم":list.length+" من "+letterboxdReviews.length+" فيلم";
   if(info)info.textContent=(lbPage+1)+" / "+pageCount;
   if(prev)prev.disabled=lbPage<=0;
   if(next)next.disabled=lbPage>=pageCount-1;
   grid.replaceChildren();
   if(!lbVisible.length){
     const p=document.createElement("p");p.className="lb-empty";
-    p.textContent=letterboxdReviews.length?"No film matches “"+lbQuery.trim()+"”.":"No rated films found for this profile.";
+    p.textContent=letterboxdReviews.length?"لا يوجد فيلم يطابق «"+lbQuery.trim()+"».":"لا توجد أفلام مقيّمة لهذا الملف.";
     grid.append(p);return;
   }
   const fragment=document.createDocumentFragment();
@@ -800,8 +798,8 @@ function parseMemberFilmsPage(markup,username,pageNumber){
   if(!containers.length){
     const title=doc.title||"";
     throw Error(/cloudflare|just a moment|access denied|attention required/i.test(title)
-      ?"Letterboxd blocked the public films page."
-      :"No film posters were found on Letterboxd page "+pageNumber+".");
+      ?"حجبت ليتربوكسد صفحة الأفلام العامة."
+      :"لم يُعثر على بوسترات في صفحة ليتربوكسد "+pageNumber+".");
   }
   const films=containers.map(container=>{
     const meta=container.querySelector("[data-item-slug]")||container;
@@ -875,14 +873,14 @@ async function fetchMemberFilmsPage(username,pageNumber,attempt=0,mode="rated"){
       return fetchMemberFilmsPage(username,pageNumber,attempt+1,mode);
     }
     if(/403|401|cloudflare|access denied|attention required|just a moment/i.test(detail)){
-      throw Error("Letterboxd is blocking public access from this network right now.");
+      throw Error("ليتربوكسد تحجب الوصول العام من هذه الشبكة الآن.");
     }
-    if(/No film posters/i.test(detail))throw Error("Letterboxd returned a page without a film grid. Try again in a moment.");
-    throw Error("Could not read Letterboxd films page "+pageNumber+"."+(window.relayLog?" Relays: "+window.relayLog.join(", "):""));
+    if(/No film posters|لم يُعثر على بوسترات/i.test(detail))throw Error("أعادت ليتربوكسد صفحة بلا شبكة أفلام. أعد المحاولة بعد لحظة.");
+    throw Error("تعذّرت قراءة صفحة أفلام ليتربوكسد "+pageNumber+"."+(window.relayLog?" Relays: "+window.relayLog.join(", "):""));
   }
 }
 async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
-  onProgress("Loading your ratings…");
+  onProgress("جارٍ تحميل تقييماتك…");
   let mode="rated",first;
   try{first=await fetchMemberFilmsPage(username,1,1,mode)}
   catch(error){mode="default";first=await fetchMemberFilmsPage(username,1,0,mode)}
@@ -892,7 +890,7 @@ async function fetchRatedLetterboxdFilms(username,onProgress=()=>{}){
   for(let page=2;page<=totalPages;page+=2){
     const batch=[];
     for(let n=page;n<Math.min(page+2,totalPages+1);n++)batch.push(n);
-    onProgress("Loading ratings · page "+batch[0]+(batch.length>1?"–"+batch[batch.length-1]:"")+" of "+totalPages);
+    onProgress("تحميل التقييمات · صفحة "+batch[0]+(batch.length>1?"–"+batch[batch.length-1]:"")+" من "+totalPages);
     const settled=await Promise.allSettled(batch.map(n=>fetchMemberFilmsPage(username,n,0,mode)));
     settled.forEach(result=>result.status==="fulfilled"?pages.push(result.value):failed++);
     if(page+2<=totalPages)await new Promise(resolve=>setTimeout(resolve,120));
@@ -921,14 +919,14 @@ function mergeRSSReviewText(ratedFilms,rssEntries){
 async function loadLB(e){
   e.preventDefault();
   const username=normalizeLB($("#lbUsername").value),button=$("#lbLoad");
-  if(!username){status("#lbStatus","Enter your Letterboxd username.","error");return}
+  if(!username){status("#lbStatus","أدخل اسم مستخدم ليتربوكسد.","error");return}
   lbQuery="";lbPage=0;
   const searchField=$("#lbSearch");if(searchField)searchField.value="";
-  button.disabled=true;button.textContent="Loading…";
-  status("#lbStatus","Finding your recent ratings…");
+  button.disabled=true;button.textContent="جارٍ التحميل…";
+  status("#lbStatus","جارٍ البحث عن تقييماتك الحديثة…");
   safeStore.set("framix.lb",username);
   const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
-  const rssPromise=fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"Letterboxd feed")
+  const rssPromise=fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"خلاصة ليتربوكسد")
     .then(xml=>parseRSS(xml,username));
   const ratingsPromise=fetchRatedLetterboxdFilms(username,message=>status("#lbStatus",message));
   let rssEntries=[];
@@ -936,7 +934,7 @@ async function loadLB(e){
     rssEntries=await rssPromise;
     if(rssEntries.length){
       letterboxdReviews=rssEntries;renderLB(letterboxdReviews);
-      status("#lbStatus","Recent ratings loaded. Fetching the rest…","success");
+      status("#lbStatus","حُمّلت التقييمات الحديثة. جارٍ تحميل البقية…","success");
     }
   }catch(error){console.info("Recent feed was unavailable",error)}
   try{
@@ -948,11 +946,11 @@ async function loadLB(e){
       letterboxdReviews=[...dated,...undated];
     }
     renderLB(letterboxdReviews);
-    const partial=result.failed?" ("+result.failed+" page"+(result.failed===1?"":"s")+" skipped)":"";
-    const order=result.mode!=="rated"&&rssEntries.length?" · recent ratings first":"";
+    const partial=result.failed?" (تم تخطي "+result.failed+" صفحة)":"";
+    const order=result.mode!=="rated"&&rssEntries.length?" · الأحدث أولًا":"";
     status("#lbStatus",letterboxdReviews.length
-      ?"Loaded "+letterboxdReviews.length+" rated films"+partial+order+"."
-      :"No rated films found. Make sure the profile is public.",
+      ?"تم تحميل "+letterboxdReviews.length+" فيلمًا مقيّمًا"+partial+order+"."
+      :"لا توجد أفلام مقيّمة. تأكد أن الملف عام.",
       letterboxdReviews.length?"success":"error");
   }catch(error){
     if(!rssEntries.length){
@@ -961,19 +959,19 @@ async function loadLB(e){
     letterboxdReviews=rssEntries;
     if(letterboxdReviews.length){
       renderLB(letterboxdReviews);
-      status("#lbStatus","Showing "+letterboxdReviews.length+" recent ratings. Try again later for your full shelf.","success");
+      status("#lbStatus","عرض "+letterboxdReviews.length+" تقييمًا حديثًا. عُد لاحقًا للرف الكامل.","success");
     }else{
       letterboxdReviews=[];renderLB([]);
-      const errorText=String(error?.message||"Ratings service unavailable");
+      const errorText=String(error?.message||"خدمة التقييمات غير متاحة");
       if(/blocking|refusing|401|403/i.test(errorText))
-        status("#lbStatus","Letterboxd is blocking automated access from this network right now. Card making still works — retry the import in a few minutes.","error");
+        status("#lbStatus","ليتربوكسد تحجب الوصول الآلي من هذه الشبكة الآن. صناعة البطاقة تعمل — أعد الاستيراد بعد دقائق.","error");
       else if(/without a film grid|unexpected|read Letterboxd/i.test(errorText))
-        status("#lbStatus","Letterboxd returned a page the importer couldn’t read. Retry in a moment.","error");
+        status("#lbStatus","أعادت ليتربوكسد صفحة تعذّرت قراءتها. أعد المحاولة بعد لحظة.","error");
       else
-        status("#lbStatus","Ratings couldn’t be loaded. Check the username and retry in a moment.","error");
+        status("#lbStatus","تعذّر تحميل التقييمات. تحقق من الاسم وأعد المحاولة بعد لحظة.","error");
     }
     console.warn("Letterboxd import failed",error);
-  }finally{button.disabled=false;button.textContent="Load ratings ↗"}
+  }finally{button.disabled=false;button.textContent="حمّل التقييمات ↗"}
 }
 async function fetchImage(url){
   let lastError=null;
@@ -994,8 +992,8 @@ async function fetchImage(url){
 
 /* ---------- Auth (optional Supabase) ---------- */
 function setMsg(s,error=false){const e=$("#authMessage");e.textContent=s;e.classList.toggle("error",error)}
-function setMode(mode){authMode=mode;$$("[data-mode]").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#authHeading").innerHTML=mode==="signup"?"Make it <em>personal.</em>":"Welcome <em>back.</em>";$("#authDescription").textContent=mode==="signup"?"Create an account with your email and a strong password.":"Sign in to your Framix account.";$("#authSubmit").innerHTML=mode==="signup"?"Create account →":"Sign in →";$("#authPassword").autocomplete=mode==="signup"?"new-password":"current-password";$("#forgotPassword").hidden=mode!=="signin";setMsg("")}
-function updateAuth(session){const email=session?.user?.email;$("#accountLabel").textContent=email?"Signed in · "+email:"Your film journal, reframed." ;$("#authOpen").hidden=!!email;$("#signOut").hidden=!email}
+function setMode(mode){authMode=mode;$$("[data-mode]").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#authHeading").innerHTML=mode==="signup"?"اجعله <em>شخصيًا.</em>":"أهلًا <em>بعودتك.</em>";$("#authDescription").textContent=mode==="signup"?"أنشئ حسابًا ببريدك وكلمة مرور قوية.":"سجّل الدخول إلى حساب فراميكس.";$("#authSubmit").innerHTML=mode==="signup"?"إنشاء حساب →":"تسجيل الدخول →";$("#authPassword").autocomplete=mode==="signup"?"new-password":"current-password";$("#forgotPassword").hidden=mode!=="signin";setMsg("")}
+function updateAuth(session){const email=session?.user?.email;$("#accountLabel").textContent=email?"مسجّل الدخول · "+email:"مفكرة أفلامك، بإطار جديد." ;$("#authOpen").hidden=!!email;$("#signOut").hidden=!email}
 function configureAuth(){const c=window.FRAMIX_CONFIG||{};if(!c.supabaseUrl||!c.supabaseAnonKey||!window.supabase?.createClient){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}try{client=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey)}catch(e){console.warn(e)}if(!client){$("#authFields").hidden=true;$("#authSetupNote").hidden=false;return}$("#authFields").hidden=false;$("#authSetupNote").hidden=true;client.auth.getSession().then(({data})=>updateAuth(data?.session||null)).catch(()=>updateAuth(null));client.auth.onAuthStateChange((_e,session)=>updateAuth(session));if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery")$("#resetDialog").showModal()}
 
 /* ---------- Wiring ---------- */
@@ -1004,13 +1002,13 @@ $("#backdropReset")?.addEventListener("click",()=>{
   backdropLoadSequence++;
   backObjectUrl=null;back=null;activeBackdropPath="";
   refreshBackdropSelection();paint();
-  setTMDBStatus("Background now uses the poster artwork.","success");
+  setTMDBStatus("الخلفية تستخدم البوستر الآن.","success");
 });
 $("#tmdbSaveKey").addEventListener("click",()=>{
  const key=val("#tmdbKey");
- if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("TMDB key cleared from this browser.");return}
+ if(!key){safeStore.set("framix.tmdbKey","");setTMDBStatus("تم مسح مفتاح TMDB من هذا المتصفح.");return}
  safeStore.set("framix.tmdbKey",key);$("#tmdbKey").value=key;
- setTMDBStatus("TMDB key saved locally. Looking up the current film/show…","success");
+ setTMDBStatus("حُفظ مفتاح TMDB محليًا. جارٍ البحث عن الفيلم الحالي…","success");
  void autoFindTMDBForReview({title:val("#filmTitle"),year:val("#filmYear"),mediaHint:lastReviewMediaHint});
 });
 $("#tmdbSearch").addEventListener("click",searchTMDB);
@@ -1042,10 +1040,10 @@ $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefa
 });
 $("#downloadCard").addEventListener("click",()=>{
   paint();canvas.toBlob(blob=>{
-    if(!blob){$("#previewStatus").textContent="EXPORT FAILED — TRY AGAIN";return}
+    if(!blob){$("#previewStatus").textContent="فشل التصدير — حاول مجددًا";return}
     const url=URL.createObjectURL(blob),anchor=document.createElement("a");
-    anchor.href=url;anchor.download="framix-story-"+(val("#filmTitle")||"review").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)+".png";
-    anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1200);$("#previewStatus").textContent="INSTAGRAM STORY DOWNLOADED ✓";
+    anchor.href=url;const slug=val("#filmTitle").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50);anchor.download="framix-story-"+(slug||"card")+".png";
+    anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1200);$("#previewStatus").textContent="تم تنزيل الستوري ✓";
   },"image/png");
 });
 $("#letterboxdForm").addEventListener("submit",loadLB);
@@ -1062,7 +1060,7 @@ $("#lbReviews").addEventListener("click",event=>{
  const button=event.target.closest("button[data-review-index]");if(!button)return;
  const review=lbVisible[Number(button.dataset.reviewIndex)];if(!review)return;
  $("#filmTitle").value=review.title.slice(0,100);
- $("#filmYear").value=[review.year,review.date?"Watched "+review.date:""].filter(Boolean).join(" · ").slice(0,60);
+ $("#filmYear").value=[review.year,review.date?"شوهد "+review.date:""].filter(Boolean).join(" · ").slice(0,60);
  if(review.rating!==null){
    $("#rating").value=String([...$("#rating").options].map(option=>+option.value).sort((a,b)=>Math.abs(a-review.rating)-Math.abs(b-review.rating))[0]);
  }
@@ -1073,10 +1071,10 @@ $("#lbReviews").addEventListener("click",event=>{
  lastReviewMediaHint="movie";void autoFindTMDBForReview({title:review.title,year:review.year,mediaHint:lastReviewMediaHint});
 });
 $("#authOpen").addEventListener("click",()=>{setMode("signin");$("#authDialog").showModal()});$("#authClose").addEventListener("click",()=>$("#authDialog").close());$("#resetClose").addEventListener("click",()=>$("#resetDialog").close());$$("[data-mode]").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
-$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){$("#authSetupNote").hidden=false;$("#authFields").hidden=true;return}const email=val("#authEmail"),password=$("#authPassword").value,button=$("#authSubmit");button.disabled=true;setMsg(authMode==="signup"?"Creating account…":"Signing in…");try{const r=authMode==="signup"?await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(authMode==="signup"&&!r.data.session)setMsg("Account created. Check your email to verify your address.");else{setMsg("You're signed in.");setTimeout(()=>$("#authDialog").close(),650)}}catch(e){setMsg(e.message||"Sign-in failed. Check your details.",true)}finally{button.disabled=false}});
-$("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("Configure Supabase first.",true);return}const email=val("#authEmail");if(!email){setMsg("Enter your email first.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("If the account exists, a recovery email has been requested.")}catch(e){setMsg(e.message||"Could not request recovery.",true)}});
-$("#resetForm").addEventListener("submit",async e=>{e.preventDefault();const el=$("#resetMessage");if(!client){el.textContent="Configure Supabase first.";return}try{const{error}=await client.auth.updateUser({password:$("#newPassword").value});if(error)throw error;el.textContent="Password updated."}catch(e){el.textContent=e.message||"Could not update password.";el.classList.add("error")}});
-$("#signOut").addEventListener("click",async()=>{if(!client)return;const{error}=await client.auth.signOut();if(error){$("#accountLabel").textContent="Could not sign out.";return}updateAuth(null)});
+$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!client){$("#authSetupNote").hidden=false;$("#authFields").hidden=true;return}const email=val("#authEmail"),password=$("#authPassword").value,button=$("#authSubmit");button.disabled=true;setMsg(authMode==="signup"?"جارٍ إنشاء الحساب…":"جارٍ تسجيل الدخول…");try{const r=authMode==="signup"?await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(authMode==="signup"&&!r.data.session)setMsg("تم إنشاء الحساب. تحقق من بريدك لتأكيد العنوان.");else{setMsg("تم تسجيل الدخول.");setTimeout(()=>$("#authDialog").close(),650)}}catch(e){setMsg(e.message||"فشل تسجيل الدخول. تحقق من بياناتك.",true)}finally{button.disabled=false}});
+$("#forgotPassword").addEventListener("click",async()=>{if(!client){setMsg("أعدّ Supabase أولًا.",true);return}const email=val("#authEmail");if(!email){setMsg("أدخل بريدك أولًا.",true);$("#authEmail").focus();return}try{const{error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMsg("إذا كان الحساب موجودًا فقد أُرسل بريد الاستعادة.")}catch(e){setMsg(e.message||"تعذّر طلب الاستعادة.",true)}});
+$("#resetForm").addEventListener("submit",async e=>{e.preventDefault();const el=$("#resetMessage");if(!client){el.textContent="أعدّ Supabase أولًا.";return}try{const{error}=await client.auth.updateUser({password:$("#newPassword").value});if(error)throw error;el.textContent="تم تحديث كلمة المرور."}catch(e){el.textContent=e.message||"تعذّر تحديث كلمة المرور.";el.classList.add("error")}});
+$("#signOut").addEventListener("click",async()=>{if(!client)return;const{error}=await client.auth.signOut();if(error){$("#accountLabel").textContent="تعذّر تسجيل الخروج.";return}updateAuth(null)});
 window.addEventListener("resize",()=>{
   if(!$("#tmdbPosterOptionsWrap").hidden)updateCarouselUI(false,"poster");
   if(!$("#tmdbBackdropOptionsWrap").hidden)updateCarouselUI(false,"backdrop");
@@ -1106,5 +1104,6 @@ buildStyleChips();
 syncThemeOptions(false);
 const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
 paint();configureAuth();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>paint());
 })();
 
