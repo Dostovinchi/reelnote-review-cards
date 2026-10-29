@@ -9,7 +9,9 @@ const val=s=>$(s).value.trim();
 function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.remove("error","success");if(type)e.classList.add(type)}
 
 /* ---------- Card engine state (ReelNote review-card maker) ---------- */
-const CARD_STYLES=[["medium","بوستر في الوسط"],["big","بوستر كبير"],["small","بوستر صغير"],["blur","خلفية ضبابية"],["starsfirst","النجوم أولًا"],["text","نص فقط"],["tilt","بوستر مائل"],["polaroid","بولارويد"],["banner","شريط علوي"],["cinema","شريط سينمائي"],["glass","لوح زجاجي"],["color","غسيل لوني"],["fullposter","بوستر كامل"],["lbclassic","ليتربوكسد الكلاسيكي"],["ticket","تذكرة سينما"],["split","إطار منقسم"],["stacked","بطاقات متراكبة"]];
+const CARD_STYLES=[["medium","بوستر في الوسط"],["big","بوستر كبير"],["small","بوستر صغير"],["blur","خلفية ضبابية"],["starsfirst","النجوم أولًا"],["tilt","بوستر مائل"],["polaroid","بولارويد"],["banner","شريط علوي"],["cinema","شريط سينمائي"],["glass","لوح زجاجي"],["fullposter","بوستر كامل"],["tribute","بوستر كلاسيكي"],["lbclassic","ليتربوكسد الكلاسيكي"],["ticket","تذكرة سينما"],["split","إطار منقسم"],["stacked","بطاقات متراكبة"]];
+const REVIEW_FONTS={tajawal:"'Tajawal',sans-serif",reem:"'Reem Kufi',sans-serif",aref:"'Aref Ruqaa',serif",amiri:"'Amiri',serif",naskh:"'Noto Naskh Arabic',serif"};
+function reviewFontStack(){const key=$("#reviewFont")?.value||"tajawal";return REVIEW_FONTS[key]||REVIEW_FONTS.tajawal}
 
 const makePalette=(label,canvas,accent,ink,muted,darkText=false)=>({label,swatch:canvas,canvas,accent,ink,muted,darkText});
 const THEME_PALETTES={
@@ -518,7 +520,7 @@ function drawReview(c,y,maxY,color){
   const paras=text.split(/\n+/).filter(Boolean);
   let size=42,lines=[],lh=0;
   for(;size>=24;size-=2){
-    c.font=size+"px 'Tajawal',system-ui,sans-serif";lh=size*1.42;lines=[];
+    c.font=size+"px "+reviewFontStack();lh=size*1.42;lines=[];
     paras.forEach(p=>lines.push(...wrap(p,880,99)));
     if(y+lines.length*lh<=maxY)break;
   }
@@ -544,19 +546,76 @@ function drawText(c,y,starsFirst,hasRev){
   if(starsFirst){stars();title()}else{title();stars()}
   if(hasRev){y=drawReview(c,y,H-150,tc);who(H-110)}else who(y);
 }
+function drawTribute(){
+  const paper="#ebe5d9",ink="#161410",muted="#6d675c";
+  const margin=80;
+  const rawYear=$("#filmYear").value||"";
+  const year=(rawYear.match(/\b(?:18|19|20)\d{2}\b/)||[])[0]||"";
+  const director=rawYear.replace(/\b(?:18|19|20)\d{2}\b/,"").replace(/^[\s·,،\-–—]+|[\s·,،\-–—]+$/g,"").trim();
+  ctx.save();
+  ctx.fillStyle=paper;ctx.fillRect(0,0,W,H);
+  ctx.direction="rtl";ctx.textAlign="right";ctx.textBaseline="alphabetic";
+  const imgY=84,imgH=800,imgW=W-margin*2;
+  if(poster){
+    ctx.save();ctx.strokeStyle=ink;ctx.lineWidth=4;ctx.strokeRect(margin-2,imgY-2,imgW+4,imgH+4);ctx.beginPath();ctx.rect(margin,imgY,imgW,imgH);ctx.clip();cover(ctx,poster,margin,imgY,imgW,imgH);ctx.restore();
+  }else{
+    ctx.strokeStyle="rgba(22,20,16,.22)";ctx.lineWidth=3;ctx.strokeRect(margin,imgY,imgW,imgH);
+    ctx.fillStyle=muted;ctx.font="500 30px 'Tajawal',sans-serif";ctx.fillText("أضف عملًا فنيًا",W-margin-24,imgY+imgH/2);
+  }
+  const title=($("#filmTitle").value||"").trim()||"فيلم بلا عنوان";
+  let ts=100,lines=[];
+  for(;ts>=56;ts-=8){
+    ctx.font="bold "+ts+"px 'Reem Kufi',sans-serif";
+    lines=wrap(title,imgW,3);
+    if(lines.length<=2)break;
+  }
+  let y=imgY+imgH+130;
+  ctx.fillStyle=ink;
+  lines.forEach(line=>{ctx.fillText(line,W-margin,y);y+=Math.round(ts*1.12)});
+  const lastBaseline=y-Math.round(ts*1.12);
+  if(year){ctx.fillStyle=ink;ctx.textAlign="left";ctx.font="500 42px 'Tajawal',sans-serif";ctx.fillText(year,margin,lastBaseline);ctx.textAlign="right"}
+  y+=6;
+  ctx.strokeStyle="rgba(22,20,16,.4)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(margin,y);ctx.lineTo(W-margin,y);ctx.stroke();y+=64;
+  const rating=parseFloat($("#rating").value)||0;
+  const rows=[];
+  if($("#showRating").checked)rows.push(["التقييم","★".repeat(Math.floor(rating))+(rating%1?"½":"")+"  "+rating.toFixed(1)]);
+  if(director)rows.push(["الإخراج",director]);
+  rows.forEach(([label,value])=>{
+    ctx.textAlign="right";ctx.fillStyle=muted;ctx.font="500 26px 'Tajawal',sans-serif";ctx.fillText(label,W-margin,y);
+    ctx.fillStyle=ink;ctx.font="500 34px 'Tajawal',sans-serif";ctx.fillText(value,W-margin-210,y,640);
+    y+=60;
+  });
+  const text=reviewText();
+  if(text){
+    y+=14;
+    ctx.textAlign="right";ctx.fillStyle=muted;ctx.font="500 24px 'Tajawal',sans-serif";ctx.fillText("المراجعة",W-margin,y);y+=48;
+    let size=38,rl=[];
+    for(;size>=24;size-=2){
+      ctx.font=size+"px "+reviewFontStack();
+      const paras=String(text).split(/\n+/).filter(Boolean);rl=[];
+      paras.forEach(p=>rl.push(...wrap(p,imgW,99)));
+      if(y+rl.length*size*1.75<=H-80)break;
+    }
+    const maxLines=Math.max(1,Math.floor((H-80-y)/(size*1.75)));
+    if(rl.length>maxLines){rl=rl.slice(0,maxLines);rl[maxLines-1]=rl[maxLines-1].replace(/[\s.,،]*$/,"")+"…"}
+    ctx.fillStyle=ink;ctx.font=size+"px "+reviewFontStack();
+    rl.forEach((line,i)=>ctx.fillText(line,W-margin,y+i*size*1.75));
+  }
+  ctx.restore();
+}
 function paint(){
   const palette=activePalette();
-  const layout=$("#posterLayout")?.value||"review";
   const style=cardStyle;
   ctx.fillStyle=palette.canvas;ctx.fillRect(0,0,W,H);
+  if(style==="tribute"){
+    drawTribute();
+    $("#previewStatus").textContent=poster?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
+    return;
+  }
   const hr=!!reviewText();
   const bg=back||poster;
   const solid=style==="banner"||style==="cinema";
-  if(style==="color"){
-    const gg=ctx.createLinearGradient(0,0,0,H);
-    gg.addColorStop(0,avgColor(poster||bg));gg.addColorStop(1,palette.canvas);
-    ctx.fillStyle=gg;ctx.fillRect(0,0,W,H);
-  }else if(bg&&!solid&&style!=="text"&&layout!=="editorial"){
+  if(bg&&!solid){
     if(style==="blur"||style==="glass")blurred(ctx,poster||bg);
     else if(style==="fullposter")cover(ctx,poster||bg,0,0,W,H);
     else cover(ctx,bg,0,0,W,H);
@@ -615,7 +674,7 @@ function paint(){
     const py=hr?90:240,ph=hr?H-180:1420;
     ctx.save();rr(ctx,60,py,W-120,ph,40);ctx.fillStyle=palette.accent+"1c";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle=palette.accent+"65";ctx.stroke();ctx.restore();
     e=hr?drawPoster(ctx,300,py+60):drawPoster(ctx,440,py+70);drawText(ctx,e+(hr?50:80),false,hr);
-  }else if(style==="color"){e=hr?drawPoster(ctx,330,150):drawPoster(ctx,520,260);drawText(ctx,e+(hr?50:90),false,hr)}
+  }
   else if(style==="fullposter")drawText(ctx,hr?900:1300,false,hr);
   else drawText(ctx,hr?200:760,false,hr);
   $("#previewStatus").textContent=poster?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
@@ -1029,10 +1088,16 @@ $$(".arrow-field").forEach(field=>{
  $("#posterLayout").addEventListener("change",()=>{
    const layout=$("#posterLayout").value;
    if(layout==="poster")cardStyle="fullposter";
-   else if(layout==="editorial")cardStyle="text";
+   else if(layout==="editorial")cardStyle="tribute";
    else cardStyle="medium";
    $("#cardComposition").value=cardStyle;paint();
  });
+$("#reviewFont").addEventListener("change",()=>{
+  const stack=reviewFontStack();
+  $("#reviewFont").style.fontFamily=stack;
+  if(document.fonts&&document.fonts.load)document.fonts.load("32px "+stack).then(()=>paint()).catch(()=>paint());
+  else paint();
+});
 $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
 ["#filmTitle","#filmYear","#rating","#reviewerName","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
   const el=$(sel);if(!el)return;
@@ -1104,6 +1169,8 @@ buildStyleChips();
 syncThemeOptions(false);
 const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
 paint();configureAuth();
+$("#reviewFont").style.fontFamily=reviewFontStack();
+if(document.fonts&&document.fonts.load)Promise.allSettled(Object.values(REVIEW_FONTS).map(f=>document.fonts.load("32px "+f))).then(()=>paint());
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>paint());
 })();
 
