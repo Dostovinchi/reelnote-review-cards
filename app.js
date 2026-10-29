@@ -555,9 +555,9 @@ function drawTribute(){
   ctx.save();
   ctx.fillStyle=paper;ctx.fillRect(0,0,W,H);
   ctx.direction="rtl";ctx.textAlign="right";ctx.textBaseline="alphabetic";
-  const imgY=84,imgH=800,imgW=W-margin*2;
-  if(poster){
-    ctx.save();ctx.strokeStyle=ink;ctx.lineWidth=4;ctx.strokeRect(margin-2,imgY-2,imgW+4,imgH+4);ctx.beginPath();ctx.rect(margin,imgY,imgW,imgH);ctx.clip();cover(ctx,poster,margin,imgY,imgW,imgH);ctx.restore();
+  const imgY=84,imgH=800,imgW=W-margin*2,art=back||poster;
+  if(art){
+    ctx.save();ctx.strokeStyle=ink;ctx.lineWidth=4;ctx.strokeRect(margin-2,imgY-2,imgW+4,imgH+4);ctx.beginPath();ctx.rect(margin,imgY,imgW,imgH);ctx.clip();cover(ctx,art,margin,imgY,imgW,imgH);ctx.restore();
   }else{
     ctx.strokeStyle="rgba(22,20,16,.22)";ctx.lineWidth=3;ctx.strokeRect(margin,imgY,imgW,imgH);
     ctx.fillStyle=muted;ctx.font="500 30px 'Tajawal',sans-serif";ctx.fillText("أضف عملًا فنيًا",W-margin-24,imgY+imgH/2);
@@ -609,7 +609,7 @@ function paint(){
   ctx.fillStyle=palette.canvas;ctx.fillRect(0,0,W,H);
   if(style==="tribute"){
     drawTribute();
-    $("#previewStatus").textContent=poster?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
+    $("#previewStatus").textContent=(poster||back)?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
     return;
   }
   const hr=!!reviewText();
