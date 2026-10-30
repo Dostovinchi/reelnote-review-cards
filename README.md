@@ -2,12 +2,6 @@
 
 Framix is a static film and TV review-card creator. It includes a live poster/card preview, local PNG export, an optional public Letterboxd RSS importer, and a Supabase email/password sign-in interface.
 
-## What costs $0
-
-- **Hosting:** GitHub Pages on this public repository, with the included GitHub Actions workflow.
-- **Review import:** Letterboxd's public films grid and RSS feed through a relay, because Letterboxd sends no CORS headers. By default the browser tries free public relays, which are shared, rate-limited by IP, and often unavailable — that is why imports succeed for some visitors and fail for others. Set `proxyBase` in `config.js` to your own free Cloudflare Worker (see [`worker/`](worker/)) for reliable imports. No Letterboxd password or OAuth token is used. The card editor and PNG export always work, even if the relay is down.
-- **Card creation:** Canvas rendering and PNG download run locally in the browser. No images, notes, or card data are uploaded by the editor.
-- **Authentication:** Supabase Free is enough for a small personal project. It currently includes 50,000 monthly active users and 500 MB database per project. Free projects may be paused after a week of low activity, so it is not a guaranteed always-on production service. See [Supabase pricing](https://supabase.com/pricing) and [free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
 
 No paid API or service is required by the code. Stay on free plans and do not enable paid add-ons or overage billing. The free public relays, the optional Worker, and Supabase quotas/availability are not guaranteed.
 
