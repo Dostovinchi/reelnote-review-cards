@@ -12,6 +12,9 @@ function status(sel,msg,type=""){const e=$(sel);e.textContent=msg;e.classList.re
 const CARD_STYLES=[["medium","بوستر في الوسط"],["big","بوستر كبير"],["small","بوستر صغير"],["blur","خلفية ضبابية"],["starsfirst","النجوم أولًا"],["tilt","بوستر مائل"],["polaroid","بولارويد"],["banner","شريط علوي"],["cinema","شريط سينمائي"],["glass","لوح زجاجي"],["fullposter","بوستر كامل"],["tribute","بوستر كلاسيكي"],["lbclassic","ليتربوكسد الكلاسيكي"],["ticket","تذكرة سينما"],["split","إطار منقسم"],["stacked","بطاقات متراكبة"]];
 const REVIEW_FONTS={tajawal:"'Tajawal',sans-serif",reem:"'Reem Kufi',sans-serif",aref:"'Aref Ruqaa',serif",amiri:"'Amiri',serif",naskh:"'Noto Naskh Arabic',serif"};
 function reviewFontStack(){const key=$("#reviewFont")?.value||"tajawal";return REVIEW_FONTS[key]||REVIEW_FONTS.tajawal}
+const USER_FONTS=REVIEW_FONTS;
+function userFontStack(){const key=$("#userFont")?.value||"tajawal";return USER_FONTS[key]||USER_FONTS.tajawal}
+function posterUser(){return String($("#posterUser")?.value||"").trim().replace(/^@+/,"").replace(/^https?:\/\/(?:www\.)?letterboxd\.com\//i,"").split(/[?#/]/)[0].replace(/[^A-Za-z0-9_]/g,"").slice(0,30)}
 
 const makePalette=(label,canvas,accent,ink,muted,darkText=false)=>({label,swatch:canvas,canvas,accent,ink,muted,darkText});
 const THEME_PALETTES={
@@ -555,13 +558,27 @@ function drawTribute(){
   ctx.save();
   ctx.fillStyle=paper;ctx.fillRect(0,0,W,H);
   ctx.direction="rtl";ctx.textAlign="right";ctx.textBaseline="alphabetic";
-  const imgY=84,imgH=800,imgW=W-margin*2,art=back||poster;
+  const user=posterUser();
+  const userAbove=!!user&&$("#userPosition")?.value==="above";
+  const userBelow=!!user&&!userAbove;
+  const drawUser=baseline=>{
+    ctx.save();
+    ctx.direction="ltr";ctx.textAlign="right";ctx.fillStyle=ink;
+    ctx.font="500 34px "+userFontStack();
+    ctx.fillText("@"+user,W-margin,baseline);
+    ctx.direction="rtl";ctx.textAlign="left";ctx.fillStyle=muted;ctx.font="500 20px 'Tajawal',sans-serif";
+    ctx.fillText("ليتربوكس",margin,baseline);
+    ctx.restore();
+  };
+  const imgY=userAbove?150:84,imgH=userAbove?734:800,imgW=W-margin*2,art=back||poster;
+  if(userAbove)drawUser(108);
   if(art){
     ctx.save();ctx.strokeStyle=ink;ctx.lineWidth=4;ctx.strokeRect(margin-2,imgY-2,imgW+4,imgH+4);ctx.beginPath();ctx.rect(margin,imgY,imgW,imgH);ctx.clip();cover(ctx,art,margin,imgY,imgW,imgH);ctx.restore();
   }else{
     ctx.strokeStyle="rgba(22,20,16,.22)";ctx.lineWidth=3;ctx.strokeRect(margin,imgY,imgW,imgH);
     ctx.fillStyle=muted;ctx.font="500 30px 'Tajawal',sans-serif";ctx.fillText("أضف عملًا فنيًا",W-margin-24,imgY+imgH/2);
   }
+  if(userBelow)drawUser(imgY+imgH+52);
   const title=($("#filmTitle").value||"").trim()||"فيلم بلا عنوان";
   let ts=100,lines=[];
   for(;ts>=56;ts-=8){
@@ -569,7 +586,7 @@ function drawTribute(){
     lines=wrap(title,imgW,3);
     if(lines.length<=2)break;
   }
-  let y=imgY+imgH+130;
+  let y=imgY+imgH+(userBelow?196:130);
   ctx.fillStyle=ink;
   lines.forEach(line=>{ctx.fillText(line,W-margin,y);y+=Math.round(ts*1.12)});
   const lastBaseline=y-Math.round(ts*1.12);
@@ -601,6 +618,21 @@ function drawTribute(){
     ctx.fillStyle=ink;ctx.font=size+"px "+reviewFontStack();
     rl.forEach((line,i)=>ctx.fillText(line,W-margin,y+i*size*1.75));
   }
+  ctx.restore();
+}
+function drawUserStamp(position){
+  const user=posterUser();if(!user)return;
+  const palette=activePalette();
+  ctx.save();
+  ctx.font="600 28px "+userFontStack();
+  const label="@"+user,tw=ctx.measureText(label).width,padX=24,h=54,w=tw+padX*2;
+  const x=(W-w)/2,y=position==="above"?54:H-h-54;
+  rr(ctx,x,y,w,h,h/2);
+  ctx.fillStyle=palette.darkText?"rgba(255,255,255,.8)":"rgba(8,11,15,.68)";ctx.fill();
+  ctx.lineWidth=2;ctx.strokeStyle=palette.accent+"99";ctx.stroke();
+  ctx.fillStyle=palette.darkText?palette.ink:"#f5f2ea";
+  ctx.textAlign="left";ctx.textBaseline="middle";ctx.direction="ltr";
+  ctx.fillText(label,x+padX,y+h/2+1);
   ctx.restore();
 }
 function paint(){
@@ -677,6 +709,7 @@ function paint(){
   }
   else if(style==="fullposter")drawText(ctx,hr?900:1300,false,hr);
   else drawText(ctx,hr?200:760,false,hr);
+  drawUserStamp($("#userPosition")?.value==="above"?"above":"below");
   $("#previewStatus").textContent=poster?"العمل الفني محمّل ✓":"جاهز للتأطير ↗";
 }
 function render(){clearTimeout(render.t);render.t=setTimeout(paint,60)}
@@ -984,6 +1017,7 @@ async function loadLB(e){
   button.disabled=true;button.textContent="جارٍ التحميل…";
   status("#lbStatus","جارٍ البحث عن تقييماتك الحديثة…");
   safeStore.set("framix.lb",username);
+  if(!$("#posterUser").value.trim())$("#posterUser").value=username;
   const feedUrl="https://letterboxd.com/"+encodeURIComponent(username)+"/rss/";
   const rssPromise=fetchPublicText(feedUrl,text=>/<rss[\s>]/i.test(text)&&/<channel[\s>]/i.test(text),"خلاصة ليتربوكسد")
     .then(xml=>parseRSS(xml,username));
@@ -1098,8 +1132,14 @@ $("#reviewFont").addEventListener("change",()=>{
   if(document.fonts&&document.fonts.load)document.fonts.load("32px "+stack).then(()=>paint()).catch(()=>paint());
   else paint();
 });
+$("#userFont").addEventListener("change",()=>{
+  const stack=userFontStack();
+  $("#userFont").style.fontFamily=stack;
+  if(document.fonts&&document.fonts.load)document.fonts.load("32px "+stack).then(()=>paint()).catch(()=>paint());
+  else paint();
+});
 $("#tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}});
-["#filmTitle","#filmYear","#rating","#reviewerName","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
+["#filmTitle","#filmYear","#rating","#reviewerName","#posterUser","#userPosition","#reviewText","#showReview","#textColor","#starColor","#darken","#showReviewer"].forEach(sel=>{
   const el=$(sel);if(!el)return;
   el.addEventListener("input",render);el.addEventListener("change",render);
 });
@@ -1167,9 +1207,10 @@ $$(".hero-frame img").forEach(img=>{
 });
 buildStyleChips();
 syncThemeOptions(false);
-const lb=safeStore.get("framix.lb");if(lb)$("#lbUsername").value=lb;
+const lb=safeStore.get("framix.lb");if(lb){$("#lbUsername").value=lb;if(!$("#posterUser").value.trim())$("#posterUser").value=lb}
 paint();configureAuth();
 $("#reviewFont").style.fontFamily=reviewFontStack();
+$("#userFont").style.fontFamily=userFontStack();
 if(document.fonts&&document.fonts.load)Promise.allSettled(Object.values(REVIEW_FONTS).map(f=>document.fonts.load("32px "+f))).then(()=>paint());
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>paint());
 })();

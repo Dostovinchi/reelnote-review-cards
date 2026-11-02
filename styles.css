@@ -502,3 +502,11 @@ body::-webkit-scrollbar-track{background:#05080f}
 @keyframes sheen{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 .connections.section::before,.studio.section::before{content:"";position:absolute;inset-inline:7%;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(126,240,212,.38),rgba(169,184,255,.28),transparent)}
 
+
+/* Username stamp controls */
+.finish-panel>label .optional{font-size:8px;color:#7f8b96;margin-inline-start:6px}
+.user-input{display:flex;align-items:center;gap:4px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.05);border-radius:999px;padding:2px 12px;margin-top:6px;transition:border-color .2s}
+.user-input:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px #e6a85c14}
+.user-input>span{flex:none;color:var(--accent-soft);font:700 13px var(--sans);direction:ltr}
+.user-input input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--ink);padding:8px 4px;font:600 12px var(--sans);direction:ltr;text-align:left}
+.user-input input::placeholder{color:#6f7b86;font-weight:400}
