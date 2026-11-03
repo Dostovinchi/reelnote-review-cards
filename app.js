@@ -675,7 +675,11 @@ function drawTribute(){
   }
   ctx.restore();
 }
-function paintAvatar(cx,cy,r,user,palette){
+function paintAvatar(cx,cy,r,user,palette,opts={}){
+  if(opts.shadow){
+    ctx.save();ctx.shadowColor="rgba(0,0,0,.42)";ctx.shadowBlur=30;ctx.shadowOffsetY=12;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle="#0c0c0c";ctx.fill();ctx.restore();
+  }
   ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
   if(lbAvatar&&avatarUser===user)ctx.drawImage(lbAvatar,cx-r,cy-r,r*2,r*2);
   else{
@@ -685,7 +689,8 @@ function paintAvatar(cx,cy,r,user,palette){
     ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText((user[0]||"?").toUpperCase(),cx,cy+1);
   }
   ctx.restore();
-  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=Math.max(2,r*.09);ctx.strokeStyle=palette.accent;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.lineWidth=opts.ringWidth||Math.max(2,r*.09);ctx.strokeStyle=opts.ring||palette.accent;ctx.stroke();
   ctx.textBaseline="alphabetic";
 }
 function drawUserCapsule(position,user,palette,withAvatar){
@@ -711,8 +716,8 @@ function drawUserStamp(){
   const avatarPos=showAv?(preference==="follow"?userPos:preference):null;
   if(avatarPos&&avatarPos!==userPos){
     drawUserCapsule(userPos,user,palette,false);
-    const h=54,y=avatarPos==="above"?84:H-h-84;
-    paintAvatar(W/2,y+h/2,46,user,palette);
+    const h=54,y=avatarPos==="above"?88:H-h-88;
+    paintAvatar(W/2,y+h/2,64,user,palette,{ring:"rgba(255,255,255,.92)",ringWidth:6,shadow:true});
   }else{
     drawUserCapsule(userPos,user,palette,showAv);
   }
