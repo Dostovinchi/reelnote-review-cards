@@ -604,10 +604,10 @@ function drawTribute(){
   const avatarPos=$("#avatarPosition")?.value||"follow";
   const avatarAbove=avatarOn&&(avatarPos==="above"||(avatarPos==="follow"&&userAbove));
   const avatarBelow=avatarOn&&(avatarPos==="below"||(avatarPos==="follow"&&userBelow));
-  const AV=33,paperPalette={ink,accent:"#161410",darkText:true};
+  const AV=50,paperPalette={ink,accent:"#161410",darkText:true};
   const drawAvatar=(cx,cy)=>paintAvatar(cx,cy,AV,user,paperPalette);
   const drawNameRow=(baseline,withAvatar)=>{
-    const right=withAvatar?W-margin-AV*2-16:W-margin;
+    const right=withAvatar?W-margin-AV*2-36:W-margin;
     ctx.save();ctx.direction="ltr";ctx.textAlign="right";ctx.fillStyle=ink;
     ctx.font="500 34px "+userFontStack();ctx.fillText("@"+user,right,baseline);ctx.restore();
     if(withAvatar)drawAvatar(W-margin-AV,baseline-12);
@@ -624,7 +624,7 @@ function drawTribute(){
     ctx.strokeStyle="rgba(22,20,16,.22)";ctx.lineWidth=3;ctx.strokeRect(margin,imgY,imgW,imgH);
     ctx.fillStyle=muted;ctx.font="500 30px 'Tajawal',sans-serif";ctx.fillText("أضف عملًا فنيًا",W-margin-24,imgY+imgH/2);
   }
-  const belowBase=imgY+imgH+52;
+  const belowBase=imgY+imgH+78;
   if(avatarBelow&&userBelow)drawNameRow(belowBase,true);
   else if(avatarBelow)drawAvatar(W-margin-AV,belowBase-12);
   else if(userBelow)drawNameRow(belowBase,false);
@@ -635,7 +635,7 @@ function drawTribute(){
     lines=wrap(title,imgW,3);
     if(lines.length<=2)break;
   }
-  let y=imgY+imgH+((userBelow||avatarBelow)?196:130);
+  let y=imgY+imgH+((userBelow||avatarBelow)?226:130);
   ctx.fillStyle=ink;
   lines.forEach(line=>{ctx.fillText(line,W-margin,y);y+=Math.round(ts*1.12)});
   const lastBaseline=y-Math.round(ts*1.12);
@@ -691,9 +691,9 @@ function paintAvatar(cx,cy,r,user,palette){
 function drawUserCapsule(position,user,palette,withAvatar){
   ctx.save();
   ctx.font="600 28px "+userFontStack();
-  const label="@"+user,tw=ctx.measureText(label).width,padX=24,h=54,w=tw+padX*2,av=withAvatar?54:0,gap=withAvatar?10:0;
+  const label="@"+user,tw=ctx.measureText(label).width,padX=24,h=54,w=tw+padX*2,av=withAvatar?76:0,gap=withAvatar?18:0;
   const total=av+gap+w,x=(W-total)/2,y=position==="above"?54:H-h-54;
-  if(withAvatar)paintAvatar(x+27,y+h/2,27,user,palette);
+  if(withAvatar)paintAvatar(x+38,y+h/2,38,user,palette);
   const bx=x+av+gap;
   rr(ctx,bx,y,w,h,h/2);
   ctx.fillStyle=palette.darkText?"rgba(255,255,255,.8)":"rgba(8,11,15,.68)";ctx.fill();
@@ -711,8 +711,8 @@ function drawUserStamp(){
   const avatarPos=showAv?(preference==="follow"?userPos:preference):null;
   if(avatarPos&&avatarPos!==userPos){
     drawUserCapsule(userPos,user,palette,false);
-    const h=54,y=avatarPos==="above"?54:H-h-54;
-    paintAvatar(W/2,y+h/2,34,user,palette);
+    const h=54,y=avatarPos==="above"?84:H-h-84;
+    paintAvatar(W/2,y+h/2,46,user,palette);
   }else{
     drawUserCapsule(userPos,user,palette,showAv);
   }
