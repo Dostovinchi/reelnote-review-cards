@@ -510,3 +510,8 @@ body::-webkit-scrollbar-track{background:#05080f}
 .user-input>span{flex:none;color:var(--accent-soft);font:700 13px var(--sans);direction:ltr}
 .user-input input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--ink);padding:8px 4px;font:600 12px var(--sans);direction:ltr;text-align:left}
 .user-input input::placeholder{color:#6f7b86;font-weight:400}
+
+/* Half-star meters in the ratings list */
+.lb-stars .star-bar{position:relative;display:inline-block;direction:ltr;line-height:1;vertical-align:-1px}
+.lb-stars .star-track{color:rgba(255,255,255,.22)}
+.lb-stars .star-fill{position:absolute;left:0;top:0;overflow:hidden;white-space:nowrap;color:var(--accent-soft)}
